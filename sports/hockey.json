@@ -1,0 +1,17 @@
+{
+  "id": "hockey",
+  "name": "Hockey",
+  "periods": ["P1", "P2", "P3", "OT"],
+  "tags": [
+    { "key": "g", "label": "Goal", "color": "#e5484d", "before": 10, "after": 5 },
+    { "key": "s", "label": "Shot", "color": "#f76b15", "before": 6, "after": 3 },
+    { "key": "v", "label": "Save", "color": "#ffc53d", "before": 6, "after": 3 },
+    { "key": "t", "label": "Turnover", "color": "#8e4ec6", "before": 6, "after": 4 },
+    { "key": "e", "label": "Zone entry", "color": "#3e63dd", "before": 4, "after": 6 },
+    { "key": "b", "label": "Breakout", "color": "#0090ff", "before": 3, "after": 6 },
+    { "key": "f", "label": "Faceoff", "color": "#12a594", "before": 2, "after": 6 },
+    { "key": "p", "label": "Penalty", "color": "#d6409f", "before": 8, "after": 3 },
+    { "key": "l", "label": "Line change", "color": "#8d8d8d", "before": 2, "after": 4 },
+    { "key": "n", "label": "Note", "color": "#46a758", "before": 3, "after": 3 }
+  ]
+}

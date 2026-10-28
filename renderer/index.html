@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; media-src file: 'self'; style-src 'self' 'unsafe-inline'">
+  <title>Video Review</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Video Review</h1>
+    <label>Sport <select id="sport"></select></label>
+    <button id="open">Open video…</button>
+    <span id="ffmpeg" class="muted"></span>
+  </header>
+  <main>
+    <section class="player">
+      <div class="stage">
+        <video id="video" preload="metadata"></video>
+        <p id="placeholder">Open an MP4 to start reviewing.</p>
+      </div>
+      <div class="controls">
+        <button id="back" title="Back 5s (←)">⏪</button>
+        <button id="stepBack" title="Previous frame (,)">◀|</button>
+        <button id="play" title="Play/Pause (Space)">▶</button>
+        <button id="stepFwd" title="Next frame (.)">|▶</button>
+        <button id="fwd" title="Forward 5s (→)">⏩</button>
+        <span id="time">00:00 / 00:00</span>
+        <input id="scrubber" type="range" min="0" max="1000" value="0">
+        <select id="speed" title="Playback speed">
+          <option value="0.25">0.25×</option><option value="0.5">0.5×</option>
+          <option value="1" selected>1×</option><option value="1.5">1.5×</option><option value="2">2×</option>
+        </select>
+      </div>
+      <div id="tagButtons" class="tag-buttons"></div>
+    </section>
+    <aside>
+      <h2>Tags <span id="tagCount" class="muted"></span></h2>
+      <ol id="tagList"></ol>
+    </aside>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
