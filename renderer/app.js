@@ -74,11 +74,37 @@ function save() {
   if (current) window.api.saveTags(current.path, { sport: sport.id, xbotgoImported, tags });
 }
 
+const esc = (str) => String(str).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+
 function renderTags() {
   $('tagCount').textContent = tags.length ? `(${tags.length})` : '';
   $('tagList').innerHTML = tags
-    .map((t, i) => `<li data-i="${i}" style="--c:${t.color}"><span class="t">${fmt(t.time)}</span>${t.label}<button class="x" data-del="${i}">×</button></li>`)
+    .map((t, i) => `<li data-i="${i}" style="--c:${t.color}"><span class="t">${fmt(t.time)}</span>${t.label}<button class="x" data-del="${i}">×</button>`
+      + `<input class="note" data-note="${i}" placeholder="Add a note…" value="${esc(t.note ?? '')}"></li>`)
     .join('');
+  renderMarkers();
+}
+
+function renderMarkers() {
+  const d = video.duration;
+  $('markers').innerHTML = d
+    ? tags.map((t, i) => `<i data-i="${i}" style="left:${(t.time / d) * 100}%;--c:${t.color}" title="${fmt(t.time)} ${t.label}"></i>`).join('')
+    : '';
+}
+
+// Clicking a tag plays its clip window (before..after) and pauses at the end of it.
+let clipEnd = null;
+function playClip(i) {
+  const t = tags[i];
+  video.currentTime = Math.max(0, t.time - t.before);
+  clipEnd = t.time + t.after;
+  document.querySelectorAll('#tagList li').forEach((li) => li.classList.toggle('playing', Number(li.dataset.i) === i));
+  video.play();
+}
+
+function stopClip() {
+  clipEnd = null;
+  document.querySelectorAll('#tagList li.playing').forEach((li) => li.classList.remove('playing'));
 }
 
 function step(frames) {
@@ -94,20 +120,29 @@ $('fwd').onclick = () => (video.currentTime += 5);
 $('stepBack').onclick = () => step(-1);
 $('stepFwd').onclick = () => step(1);
 $('speed').onchange = (e) => (video.playbackRate = Number(e.target.value));
-$('scrubber').oninput = (e) => (video.currentTime = (e.target.value / 1000) * video.duration);
+$('scrubber').oninput = (e) => (stopClip(), video.currentTime = (e.target.value / 1000) * video.duration);
 $('tagButtons').onclick = (e) => { const b = e.target.closest('button'); if (b) addTag(b.dataset.label); };
 $('tagList').onclick = (e) => {
   if (e.target.dataset.del !== undefined) { tags.splice(Number(e.target.dataset.del), 1); renderTags(); save(); return; }
+  if (e.target.dataset.note !== undefined) return;
   const li = e.target.closest('li');
-  if (li) { const t = tags[li.dataset.i]; video.currentTime = Math.max(0, t.time - t.before); video.play(); }
+  if (li) playClip(Number(li.dataset.i));
 };
+$('tagList').onchange = (e) => {
+  if (e.target.dataset.note === undefined) return;
+  tags[Number(e.target.dataset.note)].note = e.target.value.trim();
+  save();
+};
+$('markers').onclick = (e) => { if (e.target.dataset.i !== undefined) playClip(Number(e.target.dataset.i)); };
 
 video.onplay = () => ($('play').textContent = '⏸');
 video.onpause = () => ($('play').textContent = '▶');
 video.ontimeupdate = () => {
   $('time').textContent = `${fmt(video.currentTime)} / ${fmt(video.duration)}`;
   if (video.duration) $('scrubber').value = (video.currentTime / video.duration) * 1000;
+  if (clipEnd !== null && video.currentTime >= clipEnd) { video.pause(); stopClip(); }
 };
+video.onloadedmetadata = renderMarkers;
 
 if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
   let last = null;
@@ -122,7 +157,7 @@ if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
 }
 
 document.addEventListener('keydown', (e) => {
-  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  if (e.target.matches('input:not([type=range]), select')) return;
   if (e.key === ' ') { e.preventDefault(); $('play').click(); return; }
   if (e.key === 'ArrowLeft') return $('back').click();
   if (e.key === 'ArrowRight') return $('fwd').click();

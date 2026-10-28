@@ -26,7 +26,10 @@
         <button id="stepFwd" title="Next frame (.)">|▶</button>
         <button id="fwd" title="Forward 5s (→)">⏩</button>
         <span id="time">00:00 / 00:00</span>
-        <input id="scrubber" type="range" min="0" max="1000" value="0">
+        <div class="timeline">
+          <input id="scrubber" type="range" min="0" max="1000" value="0">
+          <div id="markers" class="markers"></div>
+        </div>
         <select id="speed" title="Playback speed">
           <option value="0.25">0.25×</option><option value="0.5">0.5×</option>
           <option value="1" selected>1×</option><option value="1.5">1.5×</option><option value="2">2×</option>
