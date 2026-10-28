@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, ipcMain } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, session } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { pathToFileURL } = require('url');
@@ -35,9 +35,18 @@ ipcMain.handle('sports:list', () => {
     .map((f) => JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')));
 });
 
-// Tags are saved next to the video as <video>.tags.json.
-ipcMain.handle('tags:load', (_e, videoPath) => {
-  const file = `${videoPath}.tags.json`;
+// Tags for a local video are saved next to it as <video>.tags.json. YouTube videos have no
+// file of their own, so theirs go in the app's data folder under youtube/<id>.tags.json.
+function tagsFile(key) {
+  const yt = key.match(/^youtube:([\w-]{11})$/);
+  if (!yt) return `${key}.tags.json`;
+  const dir = path.join(app.getPath('userData'), 'youtube');
+  fs.mkdirSync(dir, { recursive: true });
+  return path.join(dir, `${yt[1]}.tags.json`);
+}
+
+ipcMain.handle('tags:load', (_e, key) => {
+  const file = tagsFile(key);
   return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null;
 });
 
@@ -56,8 +65,8 @@ ipcMain.handle('xbotgo:marks', (_e, videoPath) => {
   }
 });
 
-ipcMain.handle('tags:save', (_e, videoPath, data) => {
-  fs.writeFileSync(`${videoPath}.tags.json`, JSON.stringify(data, null, 2));
+ipcMain.handle('tags:save', (_e, key, data) => {
+  fs.writeFileSync(tagsFile(key), JSON.stringify(data, null, 2));
   return true;
 });
 
@@ -67,6 +76,21 @@ ipcMain.handle('ffmpeg:check', () => new Promise((resolve) => {
   });
 }));
 
-app.whenReady().then(createWindow);
+// A page loaded from file:// sends no Referer, and YouTube refuses to embed without one
+// (player error 153), so give YouTube requests one.
+function allowYouTubeEmbeds() {
+  session.defaultSession.webRequest.onBeforeSendHeaders(
+    { urls: ['https://www.youtube.com/*', 'https://*.ytimg.com/*', 'https://*.googlevideo.com/*'] },
+    (details, callback) => {
+      details.requestHeaders.Referer ??= 'https://pucked.video/';
+      callback({ requestHeaders: details.requestHeaders });
+    },
+  );
+}
+
+app.whenReady().then(() => {
+  allowYouTubeEmbeds();
+  createWindow();
+});
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
 app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });

@@ -1,11 +1,13 @@
 const $ = (id) => document.getElementById(id);
 const video = $('video');
+// The active player: the <video> element for local files, or a YouTubeMedia for links.
+let media = video;
 
 // Most XBotGo exports are 30 fps; requestVideoFrameCallback refines this once playback starts.
 let frameDuration = 1 / 30;
 let sports = [];
 let sport = null;
-let current = null; // { path, url, size }
+let current = null; // local file { key, path, url, size } or YouTube { key, videoId }
 let tags = [];
 let xbotgoImported = false; // highlight clicks from the camera already turned into tags
 
@@ -35,15 +37,47 @@ function setSport(id) {
 async function openVideo() {
   const file = await window.api.openVideo();
   if (!file) return;
-  current = file;
+  useMedia(video);
+  current = { ...file, key: file.path };
   video.src = file.url;
+  await loadSavedTags();
+  if (!xbotgoImported) await importXbotgoMarks(file.path);
+  renderTags();
+}
+
+async function openYouTube(e) {
+  e.preventDefault();
+  const videoId = YouTubeMedia.parseId($('ytUrl').value);
+  if (!videoId) { $('ytUrl').setCustomValidity('That doesn’t look like a YouTube link'); $('ytUrl').reportValidity(); return; }
+  $('ytUrl').setCustomValidity('');
+  video.removeAttribute('src');
+  video.load();
+  const host = document.createElement('div');
+  $('yt').replaceChildren(host);
+  useMedia(new YouTubeMedia(host, videoId));
+  current = { key: `youtube:${videoId}`, videoId };
+  await loadSavedTags();
+  renderTags();
+}
+
+async function loadSavedTags() {
   $('placeholder').hidden = true;
-  const saved = await window.api.loadTags(file.path);
+  stopClip();
+  const saved = await window.api.loadTags(current.key);
   tags = saved?.tags ?? [];
   if (saved?.sport) { $('sport').value = saved.sport; setSport(saved.sport); }
   xbotgoImported = Boolean(saved?.xbotgoImported);
-  if (!xbotgoImported) await importXbotgoMarks(file.path);
-  renderTags();
+}
+
+function useMedia(next) {
+  if (media !== next && media !== video) media.destroy();
+  for (const [type, fn] of Object.entries(mediaEvents)) {
+    media.removeEventListener(type, fn);
+    next.addEventListener(type, fn);
+  }
+  media = next;
+  video.hidden = media !== video;
+  $('yt').hidden = media === video;
 }
 
 // Turn the highlight clicks made on the XBotGo during the game into Highlight tags, once per video.
@@ -64,14 +98,14 @@ async function importXbotgoMarks(videoPath) {
 function addTag(label) {
   if (!current) return;
   const def = sport.tags.find((t) => t.label === label);
-  tags.push({ label, time: video.currentTime, before: def.before, after: def.after, color: def.color });
+  tags.push({ label, time: media.currentTime, before: def.before, after: def.after, color: def.color });
   tags.sort((a, b) => a.time - b.time);
   renderTags();
   save();
 }
 
 function save() {
-  if (current) window.api.saveTags(current.path, { sport: sport.id, xbotgoImported, tags });
+  if (current) window.api.saveTags(current.key, { sport: sport.id, xbotgoImported, tags });
 }
 
 const esc = (str) => String(str).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
@@ -86,7 +120,7 @@ function renderTags() {
 }
 
 function renderMarkers() {
-  const d = video.duration;
+  const d = media.duration;
   $('markers').innerHTML = d
     ? tags.map((t, i) => `<i data-i="${i}" style="left:${(t.time / d) * 100}%;--c:${t.color}" title="${fmt(t.time)} ${t.label}"></i>`).join('')
     : '';
@@ -96,10 +130,10 @@ function renderMarkers() {
 let clipEnd = null;
 function playClip(i) {
   const t = tags[i];
-  video.currentTime = Math.max(0, t.time - t.before);
+  media.currentTime = Math.max(0, t.time - t.before);
   clipEnd = t.time + t.after;
   document.querySelectorAll('#tagList li').forEach((li) => li.classList.toggle('playing', Number(li.dataset.i) === i));
-  video.play();
+  media.play();
 }
 
 function stopClip() {
@@ -108,19 +142,20 @@ function stopClip() {
 }
 
 function step(frames) {
-  video.pause();
-  video.currentTime = Math.max(0, video.currentTime + frames * frameDuration);
+  media.pause();
+  media.currentTime = Math.max(0, media.currentTime + frames * frameDuration);
 }
 
 $('open').onclick = openVideo;
+$('ytForm').onsubmit = openYouTube;
 $('sport').onchange = (e) => { setSport(e.target.value); save(); };
-$('play').onclick = () => (video.paused ? video.play() : video.pause());
-$('back').onclick = () => (video.currentTime -= 5);
-$('fwd').onclick = () => (video.currentTime += 5);
+$('play').onclick = () => (media.paused ? media.play() : media.pause());
+$('back').onclick = () => (media.currentTime -= 5);
+$('fwd').onclick = () => (media.currentTime += 5);
 $('stepBack').onclick = () => step(-1);
 $('stepFwd').onclick = () => step(1);
-$('speed').onchange = (e) => (video.playbackRate = Number(e.target.value));
-$('scrubber').oninput = (e) => (stopClip(), video.currentTime = (e.target.value / 1000) * video.duration);
+$('speed').onchange = (e) => (media.playbackRate = Number(e.target.value));
+$('scrubber').oninput = (e) => (stopClip(), media.currentTime = (e.target.value / 1000) * media.duration);
 $('tagButtons').onclick = (e) => { const b = e.target.closest('button'); if (b) addTag(b.dataset.label); };
 $('tagList').onclick = (e) => {
   if (e.target.dataset.del !== undefined) { tags.splice(Number(e.target.dataset.del), 1); renderTags(); save(); return; }
@@ -135,14 +170,17 @@ $('tagList').onchange = (e) => {
 };
 $('markers').onclick = (e) => { if (e.target.dataset.i !== undefined) playClip(Number(e.target.dataset.i)); };
 
-video.onplay = () => ($('play').textContent = '⏸');
-video.onpause = () => ($('play').textContent = '▶');
-video.ontimeupdate = () => {
-  $('time').textContent = `${fmt(video.currentTime)} / ${fmt(video.duration)}`;
-  if (video.duration) $('scrubber').value = (video.currentTime / video.duration) * 1000;
-  if (clipEnd !== null && video.currentTime >= clipEnd) { video.pause(); stopClip(); }
+const mediaEvents = {
+  play: () => ($('play').textContent = '⏸'),
+  pause: () => ($('play').textContent = '▶'),
+  timeupdate: () => {
+    $('time').textContent = `${fmt(media.currentTime)} / ${fmt(media.duration)}`;
+    if (media.duration) $('scrubber').value = (media.currentTime / media.duration) * 1000;
+    if (clipEnd !== null && media.currentTime >= clipEnd) { media.pause(); stopClip(); }
+  },
+  loadedmetadata: renderMarkers,
 };
-video.onloadedmetadata = renderMarkers;
+for (const [type, fn] of Object.entries(mediaEvents)) video.addEventListener(type, fn);
 
 if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
   let last = null;

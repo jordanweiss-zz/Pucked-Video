@@ -11,6 +11,11 @@ main { flex: 1; display: flex; min-height: 0; }
 .player { flex: 1; display: flex; flex-direction: column; padding: 12px; gap: 8px; min-width: 0; }
 .stage { flex: 1; position: relative; background: #000; border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
 video { width: 100%; height: 100%; object-fit: contain; }
+/* The YouTube iframe fills the stage like the <video> does. */
+.yt, .yt iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+[hidden] { display: none !important; }
+.yt-form { display: flex; gap: 6px; }
+.yt-form input { width: 260px; background: #2a2e37; color: var(--text); border: 1px solid #3a3f4a; border-radius: 6px; padding: 6px 10px; }
 #placeholder { position: absolute; color: var(--muted); }
 .controls { display: flex; gap: 6px; align-items: center; }
 /* Tag markers sit in a strip just under the scrubber track. */
