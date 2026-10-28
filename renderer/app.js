@@ -93,9 +93,13 @@ video.ontimeupdate = () => {
 
 if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
   let last = null;
+  // The first frame shown after a seek looks like the "next" frame, so forget the previous one on every seek.
+  video.addEventListener('seeking', () => (last = null));
   const onFrame = (_now, meta) => {
-    if (last && meta.mediaTime > last.mediaTime && meta.presentedFrames === last.presentedFrames + 1) {
-      frameDuration = meta.mediaTime - last.mediaTime;
+    const delta = last ? meta.mediaTime - last.mediaTime : 0;
+    // Only trust back-to-back frames during normal playback, within a sane 10-240 fps range.
+    if (!video.paused && meta.presentedFrames === last?.presentedFrames + 1 && delta >= 1 / 240 && delta <= 1 / 10) {
+      frameDuration = delta;
     }
     last = meta;
     video.requestVideoFrameCallback(onFrame);
