@@ -41,6 +41,21 @@ ipcMain.handle('tags:load', (_e, videoPath) => {
   return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null;
 });
 
+// XBotGo keeps a hidden .data folder next to each recording. Its .mark file lists the
+// highlight-button presses as [{ type: 'start' | 'click', time: <seconds> }].
+ipcMain.handle('xbotgo:marks', (_e, videoPath) => {
+  const { dir, name } = path.parse(videoPath);
+  const file = path.join(dir, '.data', `${name}.mark`);
+  if (!fs.existsSync(file)) return [];
+  try {
+    return JSON.parse(fs.readFileSync(file, 'utf8'))
+      .filter((m) => m.type === 'click' && Number.isFinite(m.time))
+      .map((m) => m.time);
+  } catch {
+    return [];
+  }
+});
+
 ipcMain.handle('tags:save', (_e, videoPath, data) => {
   fs.writeFileSync(`${videoPath}.tags.json`, JSON.stringify(data, null, 2));
   return true;

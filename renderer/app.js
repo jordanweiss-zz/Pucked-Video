@@ -7,6 +7,7 @@ let sports = [];
 let sport = null;
 let current = null; // { path, url, size }
 let tags = [];
+let xbotgoImported = false; // highlight clicks from the camera already turned into tags
 
 const fmt = (s) => {
   if (!isFinite(s)) return '00:00';
@@ -40,7 +41,24 @@ async function openVideo() {
   const saved = await window.api.loadTags(file.path);
   tags = saved?.tags ?? [];
   if (saved?.sport) { $('sport').value = saved.sport; setSport(saved.sport); }
+  xbotgoImported = Boolean(saved?.xbotgoImported);
+  if (!xbotgoImported) await importXbotgoMarks(file.path);
   renderTags();
+}
+
+// Turn the highlight clicks made on the XBotGo during the game into Highlight tags, once per video.
+async function importXbotgoMarks(videoPath) {
+  const marks = await window.api.loadXbotgoMarks(videoPath);
+  if (!marks.length) return;
+  const def = sport.tags.find((t) => t.label === 'Highlight') ?? { label: 'Highlight', color: '#ffffff', before: 10, after: 5 };
+  for (const time of marks) {
+    if (!tags.some((t) => Math.abs(t.time - time) < 1)) {
+      tags.push({ label: def.label, time, before: def.before, after: def.after, color: def.color, source: 'xbotgo' });
+    }
+  }
+  tags.sort((a, b) => a.time - b.time);
+  xbotgoImported = true;
+  save();
 }
 
 function addTag(label) {
@@ -53,7 +71,7 @@ function addTag(label) {
 }
 
 function save() {
-  if (current) window.api.saveTags(current.path, { sport: sport.id, tags });
+  if (current) window.api.saveTags(current.path, { sport: sport.id, xbotgoImported, tags });
 }
 
 function renderTags() {
