@@ -1,4 +1,4 @@
-# Video Review
+# Pucked Video
 
 A desktop app for reviewing XBotGo Falcon game film, in the style of Hudl. Hockey comes first, and other sports are added as presets in `sports/`.
 
