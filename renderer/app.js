@@ -50,6 +50,7 @@ async function openYouTube(e) {
   const videoId = YouTubeMedia.parseId($('ytUrl').value);
   if (!videoId) { $('ytUrl').setCustomValidity('That doesn’t look like a YouTube link'); $('ytUrl').reportValidity(); return; }
   $('ytUrl').setCustomValidity('');
+  $('ytUrl').blur(); // so hotkeys tag instead of typing into the field
   video.removeAttribute('src');
   video.load();
   const host = document.createElement('div');

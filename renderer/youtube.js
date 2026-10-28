@@ -38,6 +38,10 @@ class YouTubeMedia extends EventTarget {
     this.videoId = videoId;
     this.paused = true;
     this.duration = NaN;
+    this.wantPlay = false; // what app.js asked for; YouTube sometimes drops a play right after a seek
+    this.seekTarget = null; // getCurrentTime() can report the old position for a moment after seekTo
+    this.lastTime = 0;
+    this.stuckSince = null;
     this.ready = YouTubeMedia.loadApi().then(() => new Promise((resolve) => {
       this.yt = new YT.Player(container, {
         videoId,
@@ -53,7 +57,26 @@ class YouTubeMedia extends EventTarget {
       });
     }));
     // The IFrame API has no timeupdate event, so poll like a <video> would fire it.
-    this.timer = setInterval(() => { if (this.yt?.getCurrentTime) this.dispatchEvent(new Event('timeupdate')); }, 100);
+    this.timer = setInterval(() => this.tick(), 100);
+  }
+
+  tick() {
+    if (!this.yt?.getCurrentTime) return;
+    this.dispatchEvent(new Event('timeupdate'));
+    // If we want to be playing but the clock hasn't moved for a second, YouTube dropped the
+    // play request (seen right after seekTo), so ask again.
+    const state = this.yt.getPlayerState();
+    const t = this.yt.getCurrentTime();
+    const moving = Math.abs(t - this.lastTime) > 0.01;
+    this.lastTime = t;
+    if (!this.wantPlay || moving || state === YT.PlayerState.BUFFERING || state === YT.PlayerState.ENDED) {
+      this.stuckSince = null;
+    } else if (this.stuckSince === null) {
+      this.stuckSince = Date.now();
+    } else if (Date.now() - this.stuckSince > 1000) {
+      this.stuckSince = null;
+      this.yt.playVideo();
+    }
   }
 
   onState(state) {
@@ -63,10 +86,21 @@ class YouTubeMedia extends EventTarget {
     if (wasPaused !== this.paused) this.dispatchEvent(new Event(this.paused ? 'pause' : 'play'));
   }
 
-  get currentTime() { return this.yt?.getCurrentTime?.() ?? 0; }
+  get currentTime() {
+    const t = this.yt?.getCurrentTime?.() ?? 0;
+    if (this.seekTarget === null) return t;
+    // Report the seek target until YouTube catches up, or for at most 2 s.
+    if (Math.abs(t - this.seekTarget.time) < 1 || Date.now() - this.seekTarget.at > 2000) {
+      this.seekTarget = null;
+      return t;
+    }
+    return this.seekTarget.time;
+  }
   set currentTime(t) {
     this.dispatchEvent(new Event('seeking'));
-    this.yt?.seekTo(Math.max(0, Math.min(t, this.duration || t)), true);
+    const time = Math.max(0, Math.min(t, this.duration || t));
+    this.seekTarget = { time, at: Date.now() };
+    this.yt?.seekTo(time, true);
     this.dispatchEvent(new Event('timeupdate'));
   }
 
@@ -74,8 +108,8 @@ class YouTubeMedia extends EventTarget {
   set playbackRate(r) { this.yt?.setPlaybackRate(r); }
   get playbackRate() { return this.yt?.getPlaybackRate?.() ?? 1; }
 
-  play() { this.yt?.playVideo(); return Promise.resolve(); }
-  pause() { this.yt?.pauseVideo(); }
+  play() { this.wantPlay = true; this.yt?.playVideo(); return Promise.resolve(); }
+  pause() { this.wantPlay = false; this.yt?.pauseVideo(); }
 
   destroy() {
     clearInterval(this.timer);
