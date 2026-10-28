@@ -54,7 +54,10 @@ async function openYouTube(e) {
   video.removeAttribute('src');
   video.load();
   const host = document.createElement('div');
-  $('yt').replaceChildren(host);
+  // A transparent shield over the iframe sends clicks to the app instead of YouTube's own player.
+  const shield = document.createElement('div');
+  shield.className = 'yt-shield';
+  $('yt').replaceChildren(host, shield);
   useMedia(new YouTubeMedia(host, videoId));
   current = { key: `youtube:${videoId}`, videoId };
   await loadSavedTags();
@@ -148,6 +151,9 @@ function step(frames) {
 }
 
 $('open').onclick = openVideo;
+// Clicking the picture toggles play, for both local files and YouTube.
+$('video').onclick = () => $('play').click();
+$('yt').onclick = (e) => { if (e.target.classList.contains('yt-shield')) $('play').click(); };
 $('ytForm').onsubmit = openYouTube;
 $('sport').onchange = (e) => { setSport(e.target.value); save(); };
 $('play').onclick = () => (media.paused ? media.play() : media.pause());

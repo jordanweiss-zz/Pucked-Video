@@ -42,6 +42,7 @@ class YouTubeMedia extends EventTarget {
     this.seekTarget = null; // getCurrentTime() can report the old position for a moment after seekTo
     this.lastTime = 0;
     this.stuckSince = null;
+    this.retryUntil = 0; // only retry shortly after our own play()/seek, never against a real pause
     this.ready = YouTubeMedia.loadApi().then(() => new Promise((resolve) => {
       this.yt = new YT.Player(container, {
         videoId,
@@ -69,7 +70,7 @@ class YouTubeMedia extends EventTarget {
     const t = this.yt.getCurrentTime();
     const moving = Math.abs(t - this.lastTime) > 0.01;
     this.lastTime = t;
-    if (!this.wantPlay || moving || state === YT.PlayerState.BUFFERING || state === YT.PlayerState.ENDED) {
+    if (!this.wantPlay || Date.now() > this.retryUntil || moving || state === YT.PlayerState.BUFFERING || state === YT.PlayerState.ENDED) {
       this.stuckSince = null;
     } else if (this.stuckSince === null) {
       this.stuckSince = Date.now();
@@ -100,6 +101,7 @@ class YouTubeMedia extends EventTarget {
     this.dispatchEvent(new Event('seeking'));
     const time = Math.max(0, Math.min(t, this.duration || t));
     this.seekTarget = { time, at: Date.now() };
+    this.retryUntil = Date.now() + 3000;
     this.yt?.seekTo(time, true);
     this.dispatchEvent(new Event('timeupdate'));
   }
@@ -108,7 +110,12 @@ class YouTubeMedia extends EventTarget {
   set playbackRate(r) { this.yt?.setPlaybackRate(r); }
   get playbackRate() { return this.yt?.getPlaybackRate?.() ?? 1; }
 
-  play() { this.wantPlay = true; this.yt?.playVideo(); return Promise.resolve(); }
+  play() {
+    this.wantPlay = true;
+    this.retryUntil = Date.now() + 3000;
+    this.yt?.playVideo();
+    return Promise.resolve();
+  }
   pause() { this.wantPlay = false; this.yt?.pauseVideo(); }
 
   destroy() {
