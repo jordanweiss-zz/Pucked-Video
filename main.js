@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const { pathToFileURL } = require('url');
 const { execFile } = require('child_process');
+const hockeyAi = require('./hockey-ai');
 
 // ffmpeg-static ships inside the asar archive; the binary has to be read from the unpacked copy.
 const ffmpegPath = require('ffmpeg-static').replace('app.asar', 'app.asar.unpacked');
@@ -70,6 +71,34 @@ ipcMain.handle('tags:save', (_e, key, data) => {
   return true;
 });
 
+// Teams and rosters are shared by every game, so they live in the app's data folder.
+const teamsFile = () => path.join(app.getPath('userData'), 'teams.json');
+
+ipcMain.handle('teams:load', () => {
+  const file = teamsFile();
+  return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : { teams: [] };
+});
+
+ipcMain.handle('teams:save', (_e, data) => {
+  fs.writeFileSync(teamsFile(), JSON.stringify(data, null, 2));
+  return true;
+});
+
+// App settings (e.g. where Hockey_AI lives) are kept in settings.json in the app's data folder.
+const settingsFile = () => path.join(app.getPath('userData'), 'settings.json');
+const readJson = (file, fallback) => (fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : fallback);
+
+ipcMain.handle('settings:load', () => readJson(settingsFile(), {}));
+ipcMain.handle('settings:save', (_e, data) => {
+  fs.writeFileSync(settingsFile(), JSON.stringify(data, null, 2));
+  return true;
+});
+
+ipcMain.handle('folder:pick', async (_e, title) => {
+  const { canceled, filePaths } = await dialog.showOpenDialog({ title, properties: ['openDirectory'] });
+  return canceled ? null : filePaths[0];
+});
+
 ipcMain.handle('ffmpeg:check', () => new Promise((resolve) => {
   execFile(ffmpegPath, ['-version'], (err, stdout) => {
     resolve(err ? { ok: false, error: err.message } : { ok: true, version: stdout.split('\n')[0] });
@@ -87,6 +116,8 @@ function allowYouTubeEmbeds() {
     },
   );
 }
+
+hockeyAi.register();
 
 app.whenReady().then(() => {
   allowYouTubeEmbeds();

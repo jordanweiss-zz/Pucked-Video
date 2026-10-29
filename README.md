@@ -19,6 +19,10 @@ npm start
 - One-key tagging (G = Goal, S = Shot, and so on), with a tag list you can click to jump to a play
 - Tags saved automatically next to the video as `<video>.tags.json`
 - Bundled ffmpeg (checked at startup) for exporting clips later
+- XBotGo highlight-button presses imported as Highlight tags
+- YouTube links, with the same tagging and stepping
+- Teams and rosters, so a tag can say which player it's about
+- Hockey AI (optional, runs on your PC): set it up in **Hockey AI**, then use **Analyze game** on a game. You click a few rink markings once per game (**Set up rink**). The analysis runs overnight, and the plays it finds show up as suggestions to keep or drop. **AI players** fixes the jersey numbers it read, and the **post-game report** prints a summary. The app runs Hockey_AI as described in its `docs/app_contract.md`.
 
 ## Keyboard
 
@@ -28,6 +32,9 @@ npm start
 | ← / → | Back/forward 5s |
 | , / . | Previous/next frame |
 | Letter keys | Tag (shown on each button) |
+| 0-9 | Pick the player for the last tag, by jersey number |
+| U | Undo the last tag you added |
+| - / + | Slower/faster |
 
 ## Adding a sport
 

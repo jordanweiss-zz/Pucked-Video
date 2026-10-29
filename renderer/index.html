@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; media-src file: 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' https://www.youtube.com https://s.ytimg.com; frame-src https://www.youtube.com">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; media-src file: 'self'; img-src 'self' file:; style-src 'self' 'unsafe-inline'; script-src 'self' https://www.youtube.com https://s.ytimg.com; frame-src https://www.youtube.com">
   <title>Pucked Video</title>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -10,6 +10,9 @@
   <header>
     <h1>Pucked Video</h1>
     <label>Sport <select id="sport"></select></label>
+    <button id="teamsBtn">Teams &amp; rosters</button>
+    <button id="aiBtn">Hockey AI</button>
+    <button id="aiJobBadge" class="job-badge" hidden title="Show Hockey AI's progress"></button>
     <button id="open">Open video…</button>
     <form id="ytForm" class="yt-form">
       <input id="ytUrl" type="url" placeholder="or paste a YouTube link" required>
@@ -21,6 +24,7 @@
     <section class="player">
       <div class="stage">
         <video id="video" preload="metadata"></video>
+        <svg id="rinkMarks" class="rink-marks" hidden></svg>
         <div id="yt" class="yt" hidden></div>
         <p id="placeholder">Open an MP4 to start reviewing.</p>
       </div>
@@ -41,13 +45,126 @@
         </select>
       </div>
       <div id="tagButtons" class="tag-buttons"></div>
+      <div class="player-bar">
+        <select id="gameTeam" title="Your team in this game"></select>
+        <div id="playerButtons" class="player-buttons"></div>
+        <span class="muted" id="playerHint"></span>
+      </div>
     </section>
-    <aside>
-      <h2>Tags <span id="tagCount" class="muted"></span></h2>
+    <aside id="tagsPanel">
+      <div class="aside-head">
+        <h2>Tags <span id="tagCount" class="muted"></span></h2>
+        <button id="undo" title="Undo the last tag you added (U)">Undo</button>
+        <button id="clearTags" title="Remove every tag in this game">Clear</button>
+      </div>
+      <div class="ai-bar">
+        <button id="aiAnalyze" title="Have Hockey AI find the plays in this game (runs overnight)">Analyze game</button>
+        <button id="aiImport" title="Load the plays Hockey AI found in this game">Import AI plays</button>
+        <button id="aiPlayers" title="Name the players Hockey AI tracked in this game" hidden>AI players</button>
+        <label class="muted"><input type="checkbox" id="showAi" checked> Show suggestions</label>
+        <span id="aiCount" class="muted"></span>
+      </div>
       <ol id="tagList"></ol>
     </aside>
+    <aside id="rinkPanel" class="rink-panel" hidden>
+      <div class="aside-head"><h2>Rink setup</h2><button id="rinkDone">Done</button></div>
+      <ol class="rink-how muted">
+        <li>Pause on a frame where you can see rink markings.</li>
+        <li>Click a marking on the rink below.</li>
+        <li>Click the same spot in the video.</li>
+      </ol>
+      <svg id="rinkMap" class="rink-map" viewBox="-4 -4 208 98"></svg>
+      <p id="rinkPicking" class="muted"></p>
+      <ul id="rinkNeeds" class="rink-needs"></ul>
+      <h3>Points you clicked</h3>
+      <ul id="rinkPicks" class="rink-picks"></ul>
+    </aside>
   </main>
+  <dialog id="teamsDialog" class="teams-dialog">
+    <div class="dialog-head">
+      <h2>Teams &amp; rosters</h2>
+      <form method="dialog"><button>Done</button></form>
+    </div>
+    <div class="teams-cols">
+      <section>
+        <h3>Teams</h3>
+        <ul id="teamList" class="team-list"></ul>
+        <form id="teamForm" class="row-form">
+          <input id="teamName" placeholder="New team name">
+          <button type="submit">Add</button>
+        </form>
+      </section>
+      <section>
+        <h3 id="rosterTitle">Roster</h3>
+        <ul id="playerList" class="player-list"></ul>
+        <form id="playerForm" class="row-form">
+          <input id="playerNum" class="num" type="number" min="0" max="99" placeholder="#">
+          <input id="playerName" placeholder="Player name">
+          <button type="submit">Add</button>
+        </form>
+      </section>
+    </div>
+  </dialog>
+  <dialog id="aiDialog" class="ai-dialog">
+    <div class="dialog-head">
+      <h2>Hockey AI settings</h2>
+      <form method="dialog"><button>Done</button></form>
+    </div>
+    <p class="row-form"><span class="muted">Hockey_AI folder:</span> <span id="aiDir"></span> <button id="aiPickDir">Change…</button></p>
+    <h3>Which plays to find</h3>
+    <table class="ai-types">
+      <thead><tr><th>Play</th><th>Minimum confidence</th><th>Gap between same plays</th></tr></thead>
+      <tbody id="aiTypes"></tbody>
+    </table>
+    <p class="row-form"><label>Gap between any two plays <input id="aiGap" type="number" min="0" max="120" step="1"> s</label></p>
+    <p class="row-form"><button id="aiSave">Save settings</button> <span id="aiStatus" class="muted"></span></p>
+  </dialog>
+  <dialog id="aiPlayersDialog" class="ai-players-dialog">
+    <div class="dialog-head">
+      <h2>Players Hockey AI tracked</h2>
+      <form method="dialog"><button>Close</button></form>
+    </div>
+    <p class="muted">Numbers marked "AI guess" were read off jerseys and are often wrong. Fix or confirm them, and type a number for anyone you recognize.</p>
+    <p class="row-form"><label class="muted"><input type="checkbox" id="aiPlayersTodo" checked> Only players that still need a number</label> <span id="aiPlayersCount" class="muted"></span></p>
+    <div id="aiPlayerGrid" class="ai-player-grid"></div>
+    <p class="row-form"><button id="aiPlayersSave">Save names</button> <span id="aiPlayersStatus" class="muted"></span></p>
+  </dialog>
+  <dialog id="analyzeDialog" class="analyze-dialog">
+    <div class="dialog-head">
+      <h2>Analyze this game</h2>
+      <form method="dialog"><button>Close</button></form>
+    </div>
+    <p id="anIntro" class="muted"></p>
+    <ul id="anNeeds" class="an-needs"></ul>
+    <ol id="anSteps" class="an-steps"></ol>
+    <div class="an-bar"><div id="anBar"></div></div>
+    <p class="row-form"><span id="anStatus"></span></p>
+    <p id="anError" class="an-error" hidden></p>
+    <p class="row-form">
+      <button id="anStart">Start analysis</button>
+      <button id="anCancel" hidden>Cancel</button>
+      <button id="anRink">Set up rink…</button>
+      <button id="anDetails">Details</button>
+    </p>
+    <pre id="anLog" class="an-log" hidden></pre>
+    <section id="anCheck" hidden>
+      <h3>Does the rink line up?</h3>
+      <p class="muted">The lines should sit on the boards, blue lines and goal lines. If they miss, add more points in Rink setup and start again.</p>
+      <div id="anOverlays" class="an-overlays"></div>
+    </section>
+    <section id="anReport" hidden>
+      <h3>Post-game report</h3>
+      <p class="row-form"><input id="repTitle" placeholder="Title, e.g. Bulldogs vs Flyers"></p>
+      <p class="row-form"><input id="repTeamA" placeholder="Team A name"> <input id="repTeamB" placeholder="Team B name"></p>
+      <p class="row-form"><button id="repMake">Make report</button> <button id="repOpen" hidden>Open last report</button></p>
+    </section>
+  </dialog>
   <script src="youtube.js"></script>
+  <script src="teams.js"></script>
+  <script src="ai.js"></script>
+  <script src="players.js"></script>
+  <script src="rink.js"></script>
+  <script src="analyze.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

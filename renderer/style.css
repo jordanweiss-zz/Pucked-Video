@@ -36,5 +36,96 @@ aside { width: 300px; background: var(--panel); padding: 12px; overflow-y: auto;
 #tagList .x { margin-left: auto; padding: 0 6px; }
 #tagList li { flex-wrap: wrap; }
 #tagList li.playing { outline: 1px solid var(--accent); }
+#tagList li.focus { background: #283048; }
 #tagList .note { flex-basis: 100%; background: transparent; border: none; border-top: 1px solid #333843; color: var(--text); font: inherit; font-size: 12px; padding: 4px 0 0; }
 #tagList .note::placeholder { color: var(--muted); }
+
+/* Player bar: pick who a tag is about. */
+.player-bar { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.player-buttons { display: flex; gap: 4px; flex-wrap: wrap; }
+.player-buttons button { padding: 4px 8px; font-size: 12px; }
+.player-buttons button.on { border-color: var(--accent); background: #2b3a6b; }
+#tagList .who { color: #c9d4ff; font-size: 12px; }
+.aside-head { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+.aside-head h2 { margin: 0 auto 0 0; }
+.aside-head button { padding: 3px 8px; font-size: 12px; }
+
+/* Teams & rosters dialog */
+dialog { background: var(--panel); color: var(--text); border: 1px solid #3a3f4a; border-radius: 10px; padding: 16px; }
+dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
+.teams-dialog { width: min(760px, 90vw); }
+.dialog-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.dialog-head h2 { margin: 0; font-size: 16px; }
+.teams-cols { display: grid; grid-template-columns: 1fr 1.4fr; gap: 16px; }
+h3 { font-size: 13px; margin: 0 0 8px; color: var(--muted); font-weight: 600; }
+.team-list, .player-list { list-style: none; padding: 0; margin: 0 0 8px; max-height: 50vh; overflow-y: auto; }
+.team-list li, .player-list li { display: flex; gap: 6px; align-items: center; padding: 4px; border-radius: 6px; }
+.team-list li { cursor: pointer; }
+.team-list li.sel { background: #2b3a6b; }
+.row-form { display: flex; gap: 6px; }
+dialog input, .player-bar select { background: #2a2e37; color: var(--text); border: 1px solid #3a3f4a; border-radius: 6px; padding: 5px 8px; font: inherit; }
+dialog input.team-name, dialog input.pname { flex: 1; min-width: 0; }
+dialog .row-form input:not(.num) { flex: 1; }
+dialog input.num { width: 64px; }
+dialog .x { margin-left: auto; padding: 2px 8px; }
+
+/* Hockey AI: suggested tags look provisional until accepted. */
+.ai-bar { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+.ai-bar button { padding: 3px 8px; font-size: 12px; }
+#tagList li.suggested { border-left-style: dashed; opacity: 0.85; }
+#tagList .conf { color: var(--muted); font-size: 11px; }
+#tagList .ok, #tagList .no { padding: 0 6px; }
+#tagList .ok + .no { margin-left: 0; }
+.markers i.suggested { opacity: 0.6; height: 5px; }
+.ai-dialog { width: min(640px, 90vw); }
+.ai-types { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+.ai-types th { text-align: left; font-size: 12px; color: var(--muted); font-weight: 600; padding: 4px; }
+.ai-types td { padding: 4px; }
+.ai-types input[type=range] { width: 120px; vertical-align: middle; margin-right: 6px; }
+dialog input[type=number] { width: 64px; }
+
+/* AI players: name the players Hockey AI tracked. */
+.ai-players-dialog { width: min(900px, 92vw); }
+.ai-player-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; max-height: 60vh; overflow-y: auto; margin-bottom: 8px; }
+.ai-player { background: #23262d; border-radius: 8px; padding: 8px; display: flex; flex-direction: column; gap: 4px; border-top: 3px solid var(--c, #3a3f4a); }
+.ai-player img { width: 100%; height: 150px; object-fit: contain; background: #000; border-radius: 4px; cursor: pointer; }
+.ai-player .noimg { height: 150px; display: flex; align-items: center; justify-content: center; background: #000; border-radius: 4px; }
+.ai-player .row-form { align-items: center; }
+.ai-player .guess { color: #b48cff; font-size: 11px; }
+.ai-player .who { color: #c9d4ff; font-size: 12px; min-height: 1em; }
+.ai-player.changed { outline: 1px solid var(--accent); }
+.ai-player .ok { padding: 2px 6px; }
+
+/* Analyze game */
+.job-badge { background: #2b3a6b; border-color: var(--accent); }
+.analyze-dialog { width: min(720px, 92vw); }
+.an-needs, .an-steps, .rink-needs { list-style: none; padding: 0; margin: 0 0 10px; }
+.an-needs li, .an-steps li, .rink-needs li { padding: 3px 0; color: var(--muted); }
+.an-needs li.ok, .an-steps li.done, .an-steps li.skipped, .rink-needs li.ok { color: #7fd18b; }
+.an-steps li.running { color: var(--text); }
+.an-steps li.failed { color: #ff7b7b; }
+.an-bar { height: 8px; background: #2a2e37; border-radius: 4px; overflow: hidden; margin-bottom: 6px; }
+.an-bar div { height: 100%; width: 0; background: var(--accent); transition: width 0.4s; }
+.an-error { color: #ff9b9b; background: #3a2226; border-radius: 6px; padding: 8px; white-space: pre-wrap; }
+.an-log { max-height: 200px; overflow: auto; background: #0c0d10; padding: 8px; border-radius: 6px; font-size: 11px; white-space: pre-wrap; }
+.an-overlays { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.an-overlays img { width: 100%; border-radius: 4px; cursor: zoom-in; }
+button.link { background: none; border: none; color: #8fa8ff; padding: 0; text-decoration: underline; }
+button:disabled { opacity: 0.5; cursor: default; }
+
+/* Rink setup */
+.rink-panel { width: 300px; background: var(--panel); padding: 12px; overflow-y: auto; }
+.rink-how { padding-left: 18px; margin: 0 0 8px; font-size: 12px; }
+.rink-map { width: 100%; margin-bottom: 6px; }
+.rink-map .lm { fill: #fff; stroke: #333; stroke-width: 0.8; cursor: pointer; }
+.rink-map .lm.picked { fill: #7fd18b; }
+.rink-map .lm.here { fill: #3e63dd; }
+.rink-map .lm.sel { fill: #ffd33d; stroke: #000; stroke-width: 1.4; }
+.rink-picks { list-style: none; padding: 0; margin: 0; font-size: 12px; }
+.rink-picks > li { margin-bottom: 6px; }
+.rink-picks ul { list-style: none; padding-left: 10px; margin: 2px 0; }
+.rink-picks ul li { display: flex; align-items: center; gap: 4px; }
+.rink-picks .x { margin-left: auto; padding: 0 6px; font-size: 11px; }
+.rink-marks { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; }
+.rink-marks circle { fill: none; stroke: #ffd33d; stroke-width: 3; }
+.rink-marks text { fill: #ffd33d; font-size: 26px; paint-order: stroke; stroke: #000; stroke-width: 4px; }

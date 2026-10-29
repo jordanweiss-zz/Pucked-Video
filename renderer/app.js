@@ -10,6 +10,10 @@ let sport = null;
 let current = null; // local file { key, path, url, size } or YouTube { key, videoId }
 let tags = [];
 let xbotgoImported = false; // highlight clicks from the camera already turned into tags
+let aiRunPath = null; // this game's imported Hockey_AI results, for the AI players screen
+let gameTeamId = null; // your team in this game; its roster fills the player bar
+let focusTag = null; // the tag a player pick applies to: the one just added or clicked
+const added = []; // tags added this session, newest last, for Undo
 
 const fmt = (s) => {
   if (!isFinite(s)) return '00:00';
@@ -23,6 +27,16 @@ async function init() {
   $('sport').innerHTML = sports.map((s) => `<option value="${s.id}">${s.name}</option>`).join('');
   $('sport').value = 'hockey';
   setSport('hockey');
+  await AI.load();
+  AI.wire();
+  AiPlayers.wire();
+  Rink.wire();
+  Analyze.wire();
+  await Teams.load();
+  Teams.onChange = () => { renderTeamSelect(); renderPlayers(); renderTags(); };
+  Teams.wire();
+  renderTeamSelect();
+  renderPlayers();
   const ff = await window.api.checkFfmpeg();
   $('ffmpeg').textContent = ff.ok ? 'ffmpeg ready' : 'ffmpeg not found';
 }
@@ -43,6 +57,7 @@ async function openVideo() {
   await loadSavedTags();
   if (!xbotgoImported) await importXbotgoMarks(file.path);
   renderTags();
+  await Analyze.gameOpened();
 }
 
 async function openYouTube(e) {
@@ -71,6 +86,42 @@ async function loadSavedTags() {
   tags = saved?.tags ?? [];
   if (saved?.sport) { $('sport').value = saved.sport; setSport(saved.sport); }
   xbotgoImported = Boolean(saved?.xbotgoImported);
+  aiRunPath = saved?.aiRun ?? null;
+  $('aiPlayers').hidden = !aiRunPath;
+  // A new game defaults to your only team, if you have just one.
+  gameTeamId = saved?.teamId ?? (Teams.data.teams.length === 1 ? Teams.data.teams[0].id : null);
+  focusTag = null;
+  added.length = 0;
+  renderTeamSelect();
+  renderPlayers();
+}
+
+function renderTeamSelect() {
+  if (gameTeamId && !Teams.get(gameTeamId)) gameTeamId = null;
+  $('gameTeam').innerHTML = '<option value="">No team</option>'
+    + Teams.data.teams.map((t) => `<option value="${t.id}">${esc(t.name)}</option>`).join('');
+  $('gameTeam').value = gameTeamId ?? '';
+}
+
+function renderPlayers() {
+  const team = Teams.get(gameTeamId);
+  const players = team ? team.players.slice().sort((a, b) => (Number(a.number) || 999) - (Number(b.number) || 999)) : [];
+  $('playerButtons').innerHTML = players
+    .map((p) => `<button data-player="${p.id}" class="${focusTag?.player?.id === p.id ? 'on' : ''}">${esc(Teams.label(p))}</button>`)
+    .join('') + (team ? `<button data-player="" class="${focusTag && !focusTag.player ? '' : ''}" title="Not about one player">Team</button>` : '');
+  $('playerHint').textContent = !team
+    ? (Teams.data.teams.length ? 'Pick your team to tag players' : 'Add your team under Teams & rosters to tag players')
+    : focusTag ? `Who was it? Click a player or type their number for the ${fmt(focusTag.time)} ${focusTag.label}` : 'Tag a play, then pick the player';
+}
+
+function assignPlayer(playerId) {
+  if (!focusTag) return;
+  const p = Teams.get(gameTeamId)?.players.find((x) => x.id === playerId);
+  if (p) focusTag.player = { id: p.id, number: p.number, name: p.name };
+  else delete focusTag.player;
+  renderTags();
+  renderPlayers();
+  save();
 }
 
 function useMedia(next) {
@@ -102,23 +153,76 @@ async function importXbotgoMarks(videoPath) {
 function addTag(label) {
   if (!current) return;
   const def = sport.tags.find((t) => t.label === label);
-  tags.push({ label, time: media.currentTime, before: def.before, after: def.after, color: def.color });
+  const tag = { label, time: media.currentTime, before: def.before, after: def.after, color: def.color };
+  tags.push(tag);
   tags.sort((a, b) => a.time - b.time);
+  added.push(tag);
+  focusTag = tag;
   renderTags();
+  renderPlayers();
   save();
 }
 
+// Undo removes the tag you added most recently (not the latest one in game time).
+function undo() {
+  const tag = added.pop();
+  if (!tag) return;
+  tags = tags.filter((t) => t !== tag);
+  if (focusTag === tag) focusTag = added.at(-1) ?? null;
+  renderTags();
+  renderPlayers();
+  save();
+}
+
+function clearTags() {
+  if (!tags.length || !confirm(`Remove all ${tags.length} tags from this game?`)) return;
+  tags = [];
+  added.length = 0;
+  focusTag = null;
+  renderTags();
+  renderPlayers();
+  save();
+}
+
+// Bring a Hockey_AI run's plays into this game as suggestions.
+function importAiRun(run) {
+  const result = AI.importRun(run, Teams.get(gameTeamId));
+  aiRunPath = run.exportPath;
+  $('aiPlayers').hidden = false;
+  renderTags();
+  save();
+  return result;
+}
+
+// Re-pick this game's AI plays after a settings change or a player fix. No graphics card needed; takes seconds.
+async function refreshAiPlays() {
+  const run = await window.api.loadAiRun(aiRunPath);
+  const res = await window.api.refilterAi(AI.dir, run.base, run.data.start_offset ?? 0);
+  if (res.ok) importAiRun(await window.api.loadAiRun(aiRunPath));
+  return res;
+}
+
 function save() {
-  if (current) window.api.saveTags(current.key, { sport: sport.id, xbotgoImported, tags });
+  if (current) window.api.saveTags(current.key, { sport: sport.id, teamId: gameTeamId, xbotgoImported, aiRun: aiRunPath, tags });
 }
 
 const esc = (str) => String(str).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
+// Rejected AI plays stay in the file (so a re-import skips them) but are never shown.
+const visible = (t) => t.status !== 'rejected' && (t.status !== 'suggested' || $('showAi').checked);
+
 function renderTags() {
-  $('tagCount').textContent = tags.length ? `(${tags.length})` : '';
+  const shown = tags.filter(visible);
+  const suggested = tags.filter((t) => t.status === 'suggested').length;
+  $('tagCount').textContent = shown.length ? `(${shown.length})` : '';
+  $('aiCount').textContent = suggested ? `${suggested} to review` : '';
   $('tagList').innerHTML = tags
-    .map((t, i) => `<li data-i="${i}" style="--c:${t.color}"><span class="t">${fmt(t.time)}</span>${t.label}<button class="x" data-del="${i}">×</button>`
-      + `<input class="note" data-note="${i}" placeholder="Add a note…" value="${esc(t.note ?? '')}"></li>`)
+    .map((t, i) => (!visible(t) ? '' : `<li data-i="${i}" style="--c:${t.color}" class="${t === focusTag ? 'focus' : ''} ${t.status === 'suggested' ? 'suggested' : ''}"><span class="t">${fmt(t.time)}</span>${t.label}`
+      + (t.player ? ` <span class="who">${esc(Teams.label(t.player))}</span>` : '')
+      + (t.status === 'suggested'
+        ? ` <span class="conf">AI ${Math.round((t.confidence ?? 0) * 100)}%</span><button class="x ok" data-ok="${i}" title="Keep this play">✓</button><button class="no" data-no="${i}" title="Not a real play">✗</button>`
+        : `<button class="x" data-del="${i}">×</button>`)
+      + `<input class="note" data-note="${i}" placeholder="Add a note…" value="${esc(t.note ?? '')}"></li>`))
     .join('');
   renderMarkers();
 }
@@ -126,7 +230,7 @@ function renderTags() {
 function renderMarkers() {
   const d = media.duration;
   $('markers').innerHTML = d
-    ? tags.map((t, i) => `<i data-i="${i}" style="left:${(t.time / d) * 100}%;--c:${t.color}" title="${fmt(t.time)} ${t.label}"></i>`).join('')
+    ? tags.map((t, i) => (visible(t) ? `<i data-i="${i}" class="${t.status === 'suggested' ? 'suggested' : ''}" style="left:${(t.time / d) * 100}%;--c:${t.color}" title="${fmt(t.time)} ${t.label}"></i>` : '')).join('')
     : '';
 }
 
@@ -134,6 +238,8 @@ function renderMarkers() {
 let clipEnd = null;
 function playClip(i) {
   const t = tags[i];
+  focusTag = t;
+  renderPlayers();
   media.currentTime = Math.max(0, t.time - t.before);
   clipEnd = t.time + t.after;
   document.querySelectorAll('#tagList li').forEach((li) => li.classList.toggle('playing', Number(li.dataset.i) === i));
@@ -165,7 +271,22 @@ $('speed').onchange = (e) => (media.playbackRate = Number(e.target.value));
 $('scrubber').oninput = (e) => (stopClip(), media.currentTime = (e.target.value / 1000) * media.duration);
 $('tagButtons').onclick = (e) => { const b = e.target.closest('button'); if (b) addTag(b.dataset.label); };
 $('tagList').onclick = (e) => {
-  if (e.target.dataset.del !== undefined) { tags.splice(Number(e.target.dataset.del), 1); renderTags(); save(); return; }
+  if (e.target.dataset.del !== undefined) {
+    const [gone] = tags.splice(Number(e.target.dataset.del), 1);
+    if (focusTag === gone) focusTag = null;
+    const a = added.indexOf(gone);
+    if (a >= 0) added.splice(a, 1);
+    renderTags(); renderPlayers(); save();
+    return;
+  }
+  if (e.target.dataset.ok !== undefined) { tags[Number(e.target.dataset.ok)].status = 'accepted'; renderTags(); save(); return; }
+  if (e.target.dataset.no !== undefined) {
+    const t = tags[Number(e.target.dataset.no)];
+    t.status = 'rejected';
+    if (focusTag === t) focusTag = null;
+    renderTags(); renderPlayers(); save();
+    return;
+  }
   if (e.target.dataset.note !== undefined) return;
   const li = e.target.closest('li');
   if (li) playClip(Number(li.dataset.i));
@@ -175,6 +296,26 @@ $('tagList').onchange = (e) => {
   tags[Number(e.target.dataset.note)].note = e.target.value.trim();
   save();
 };
+$('playerButtons').onclick = (e) => { const b = e.target.closest('button'); if (b) assignPlayer(b.dataset.player); };
+$('gameTeam').onchange = (e) => { gameTeamId = e.target.value || null; renderPlayers(); save(); };
+$('undo').onclick = undo;
+$('showAi').onchange = renderTags;
+$('aiImport').onclick = async () => {
+  if (!current) return alert('Open a game first.');
+  let run;
+  try {
+    run = await window.api.pickAiResults(AI.dir ? `${AI.dir}/output` : undefined);
+  } catch (err) {
+    return alert(err.message);
+  }
+  if (!run) return;
+  const { added: n, toReview } = importAiRun(run);
+  const plays = (k) => `${k} play${k === 1 ? '' : 's'}`;
+  alert(n ? `Added ${plays(n)} for you to review. Click ✓ to keep a play or ✗ to drop it.`
+    : toReview ? `No new plays. ${plays(toReview)} still to review.` : 'No new plays in that file.');
+};
+$('aiPlayers').onclick = () => AiPlayers.open(aiRunPath);
+$('clearTags').onclick = clearTags;
 $('markers').onclick = (e) => { if (e.target.dataset.i !== undefined) playClip(Number(e.target.dataset.i)); };
 
 const mediaEvents = {
@@ -205,8 +346,34 @@ if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
   video.requestVideoFrameCallback(onFrame);
 }
 
+// Step the speed dropdown up or down one option.
+function nudgeSpeed(dir) {
+  const sel = $('speed');
+  sel.selectedIndex = Math.max(0, Math.min(sel.options.length - 1, sel.selectedIndex + dir));
+  sel.dispatchEvent(new Event('change'));
+}
+
+// Typing a jersey number (one or two digits) picks that player for the focused tag.
+let digits = '';
+let digitTimer = null;
+function typeDigit(d) {
+  digits += d;
+  clearTimeout(digitTimer);
+  const players = Teams.get(gameTeamId)?.players ?? [];
+  const exact = players.find((p) => String(p.number) === digits);
+  const longer = players.some((p) => String(p.number ?? '').startsWith(digits) && String(p.number) !== digits);
+  if (exact && !longer) { assignPlayer(exact.id); digits = ''; return; }
+  digitTimer = setTimeout(() => { if (exact) assignPlayer(exact.id); digits = ''; }, 700);
+}
+
 document.addEventListener('keydown', (e) => {
+  if (document.querySelector('dialog[open]')) return;
   if (e.target.matches('input:not([type=range]), select')) return;
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (/^[0-9]$/.test(e.key)) return typeDigit(e.key);
+  if (e.key === '-') return nudgeSpeed(-1);
+  if (e.key === '+' || e.key === '=') return nudgeSpeed(1);
+  if (e.key.toLowerCase() === 'u') return undo();
   if (e.key === ' ') { e.preventDefault(); $('play').click(); return; }
   if (e.key === 'ArrowLeft') return $('back').click();
   if (e.key === 'ArrowRight') return $('fwd').click();
