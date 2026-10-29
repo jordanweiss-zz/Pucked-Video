@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; media-src file: 'self'; style-src 'self' 'unsafe-inline'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; media-src file: 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' https://www.youtube.com https://s.ytimg.com; frame-src https://www.youtube.com">
   <title>Pucked Video</title>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -11,12 +11,17 @@
     <h1>Pucked Video</h1>
     <label>Sport <select id="sport"></select></label>
     <button id="open">Open video…</button>
+    <form id="ytForm" class="yt-form">
+      <input id="ytUrl" type="url" placeholder="or paste a YouTube link" required>
+      <button type="submit">Load</button>
+    </form>
     <span id="ffmpeg" class="muted"></span>
   </header>
   <main>
     <section class="player">
       <div class="stage">
         <video id="video" preload="metadata"></video>
+        <div id="yt" class="yt" hidden></div>
         <p id="placeholder">Open an MP4 to start reviewing.</p>
       </div>
       <div class="controls">
@@ -26,7 +31,10 @@
         <button id="stepFwd" title="Next frame (.)">|▶</button>
         <button id="fwd" title="Forward 5s (→)">⏩</button>
         <span id="time">00:00 / 00:00</span>
-        <input id="scrubber" type="range" min="0" max="1000" value="0">
+        <div class="timeline">
+          <input id="scrubber" type="range" min="0" max="1000" value="0">
+          <div id="markers" class="markers"></div>
+        </div>
         <select id="speed" title="Playback speed">
           <option value="0.25">0.25×</option><option value="0.5">0.5×</option>
           <option value="1" selected>1×</option><option value="1.5">1.5×</option><option value="2">2×</option>
@@ -39,6 +47,7 @@
       <ol id="tagList"></ol>
     </aside>
   </main>
+  <script src="youtube.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

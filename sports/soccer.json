@@ -3,6 +3,7 @@
   "name": "Soccer",
   "periods": ["1st half", "2nd half", "ET"],
   "tags": [
+    { "key": "h", "label": "Highlight", "color": "#ffffff", "before": 10, "after": 5 },
     { "key": "g", "label": "Goal", "color": "#e5484d", "before": 12, "after": 5 },
     { "key": "s", "label": "Shot", "color": "#f76b15", "before": 8, "after": 3 },
     { "key": "v", "label": "Save", "color": "#ffc53d", "before": 6, "after": 3 },
