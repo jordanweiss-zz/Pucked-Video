@@ -156,7 +156,7 @@ async function runJob(hai, kind, video, steps, onDone) {
     if (code !== 0) {
       step.status = 'failed';
       job.state = 'failed';
-      job.error = step.error ?? `${step.label} stopped unexpectedly (exit code ${code}).`;
+      job.error = friendlyError(step.error) ?? `${step.label} stopped unexpectedly (exit code ${code}).`;
       job.fixable = code === 2;
       break;
     }
@@ -172,6 +172,13 @@ async function runJob(hai, kind, video, steps, onDone) {
   powerSaveBlocker.stop(blocker);
   blocker = null;
   send();
+}
+
+// Hockey_AI's ERROR lines are shown as they are, except ones with a plainer way to say them.
+function friendlyError(msg) {
+  const res = msg?.match(/--lens is for 1920x1080 video, this video is (\d+x\d+)/);
+  if (res) return `Unsupported resolution: Hockey AI only works on 1920×1080 XBotGo video for now, and this video is ${res[1].replace('x', '×')}.`;
+  return msg;
 }
 
 // Steps 1-4 of the contract. Weights are hours of work per hour of video, for the progress bar and estimate.
