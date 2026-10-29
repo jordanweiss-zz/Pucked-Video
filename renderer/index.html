@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; media-src file: 'self'; img-src 'self' file:; style-src 'self' 'unsafe-inline'; script-src 'self' https://www.youtube.com https://s.ytimg.com; frame-src https://www.youtube.com">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; media-src file: 'self'; img-src 'self' file: data:; style-src 'self' 'unsafe-inline'; script-src 'self' https://www.youtube.com https://s.ytimg.com; frame-src https://www.youtube.com">
   <title>Pucked Video</title>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -24,6 +24,18 @@
     <section class="player">
       <div class="stage">
         <video id="video" preload="metadata"></video>
+        <svg id="drawLayer" class="draw-layer" hidden></svg>
+        <div id="drawBar" class="draw-bar" hidden>
+          <button data-tool="arrow" title="Arrow">➜</button>
+          <button data-tool="line" title="Line">╱</button>
+          <button data-tool="circle" title="Circle">◯</button>
+          <button data-tool="pen" title="Pen">✎</button>
+          <span id="drawColors" class="draw-colors"></span>
+          <button id="drawUndo" title="Undo the last mark">Undo</button>
+          <button id="drawClear" title="Remove the drawing on this frame">Clear</button>
+          <button id="drawSave" title="Save this frame with the drawing as a picture">Save picture</button>
+          <button id="drawDone">Done</button>
+        </div>
         <svg id="rinkMarks" class="rink-marks" hidden></svg>
         <div id="yt" class="yt" hidden></div>
         <p id="placeholder">Open an MP4 to start reviewing.</p>
@@ -39,6 +51,7 @@
           <input id="scrubber" type="range" min="0" max="1000" value="0">
           <div id="markers" class="markers"></div>
         </div>
+        <button id="drawBtn" title="Draw on the video (D)">✎ Draw</button>
         <select id="speed" title="Playback speed">
           <option value="0.25">0.25×</option><option value="0.5">0.5×</option>
           <option value="1" selected>1×</option><option value="1.5">1.5×</option><option value="2">2×</option>
@@ -58,6 +71,10 @@
         <button id="clearTags" title="Remove every tag in this game">Clear</button>
       </div>
       <div class="ai-bar">
+        <button id="reelBtn" title="Join the plays you pick into one video">Make reel</button>
+        <button id="chBtn" title="Timestamps for a YouTube description">YouTube chapters</button>
+      </div>
+      <div class="ai-bar">
         <button id="aiAnalyze" title="Have Hockey AI find the plays in this game (runs overnight)">Analyze game</button>
         <button id="aiImport" title="Load the plays Hockey AI found in this game">Import AI plays</button>
         <button id="aiPlayers" title="Name the players Hockey AI tracked in this game" hidden>AI players</button>
@@ -65,6 +82,11 @@
         <span id="aiCount" class="muted"></span>
       </div>
       <ol id="tagList"></ol>
+      <div id="exportToast" class="export-toast" hidden>
+        <span id="exportText"></span>
+        <div class="an-bar"><div id="exportBar"></div></div>
+        <p class="row-form"><button id="exportCancel">Cancel</button><button id="exportShow" hidden>Show in folder</button><button id="exportClose" hidden>OK</button></p>
+      </div>
     </aside>
     <aside id="rinkPanel" class="rink-panel" hidden>
       <div class="aside-head"><h2>Rink setup</h2><button id="rinkDone">Done</button></div>
@@ -129,6 +151,34 @@
     <div id="aiPlayerGrid" class="ai-player-grid"></div>
     <p class="row-form"><button id="aiPlayersSave">Save names</button> <span id="aiPlayersStatus" class="muted"></span></p>
   </dialog>
+  <dialog id="chDialog" class="reel-dialog">
+    <div class="dialog-head">
+      <h2>YouTube chapters</h2>
+      <form method="dialog"><button>Close</button></form>
+    </div>
+    <h3>Plays to list</h3>
+    <div id="chTypes" class="reel-types"></div>
+    <p><label><input type="checkbox" id="chPlayers" checked> Player names</label>
+      <label><input type="checkbox" id="chNotes"> Notes</label>
+      <label><input type="checkbox" id="chEarly" checked> Start a few seconds before each play</label></p>
+    <p class="row-form"><label>Join plays less than <input id="chGap" type="number" min="10" max="120" value="10"> s apart</label>
+      <label>First chapter <input id="chStart" value="Start" size="10"></label></p>
+    <textarea id="chText" class="ch-text" rows="10" readonly></textarea>
+    <p class="row-form"><button id="chCopy">Copy</button> <span id="chNote" class="muted"></span></p>
+  </dialog>
+  <dialog id="reelDialog" class="reel-dialog">
+    <div class="dialog-head">
+      <h2>Make a highlight reel</h2>
+      <form method="dialog"><button>Close</button></form>
+    </div>
+    <h3>Plays to include</h3>
+    <div id="reelTypes" class="reel-types"></div>
+    <p class="row-form"><label>Player <select id="reelPlayer"></select></label></p>
+    <p><label><input type="checkbox" id="reelSuggested"> Include AI plays you haven't reviewed yet</label></p>
+    <p><label><input type="checkbox" id="reelOverlay" checked> Show the play and player at the start of each clip</label></p>
+    <p id="reelSummary" class="muted"></p>
+    <p class="row-form"><button id="reelSave">Save reel…</button></p>
+  </dialog>
   <dialog id="analyzeDialog" class="analyze-dialog">
     <div class="dialog-head">
       <h2>Analyze this game</h2>
@@ -165,6 +215,9 @@
   <script src="players.js"></script>
   <script src="rink.js"></script>
   <script src="analyze.js"></script>
+  <script src="clips.js"></script>
+  <script src="draw.js"></script>
+  <script src="chapters.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

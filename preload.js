@@ -25,5 +25,12 @@ contextBridge.exposeInMainWorld('api', {
   cancelAiJob: () => ipcRenderer.invoke('ai:job:cancel'),
   onAiJob: (fn) => ipcRenderer.on('ai:job', (_e, job) => fn(job)),
   openFile: (file) => ipcRenderer.invoke('ai:open', file),
+  saveVideoAs: (defaultPath) => ipcRenderer.invoke('clips:save-as', defaultPath),
+  exportClips: (opts) => ipcRenderer.invoke('clips:export', opts),
+  cancelClips: () => ipcRenderer.invoke('clips:cancel'),
+  savePictureAs: (defaultPath) => ipcRenderer.invoke('frame:save-as', defaultPath),
+  saveFrame: (opts) => ipcRenderer.invoke('frame:save', opts),
+  showFile: (file) => ipcRenderer.invoke('clips:show', file),
+  onClipsProgress: (fn) => ipcRenderer.on('clips:progress', (_e, state) => fn(state)),
   checkFfmpeg: () => ipcRenderer.invoke('ffmpeg:check'),
 });

@@ -32,6 +32,9 @@ async function init() {
   AiPlayers.wire();
   Rink.wire();
   Analyze.wire();
+  Clips.wire();
+  Draw.wire();
+  Chapters.wire();
   await Teams.load();
   Teams.onChange = () => { renderTeamSelect(); renderPlayers(); renderTags(); };
   Teams.wire();
@@ -84,6 +87,7 @@ async function loadSavedTags() {
   stopClip();
   const saved = await window.api.loadTags(current.key);
   tags = saved?.tags ?? [];
+  Draw.load(saved?.drawings);
   if (saved?.sport) { $('sport').value = saved.sport; setSport(saved.sport); }
   xbotgoImported = Boolean(saved?.xbotgoImported);
   aiRunPath = saved?.aiRun ?? null;
@@ -203,7 +207,7 @@ async function refreshAiPlays() {
 }
 
 function save() {
-  if (current) window.api.saveTags(current.key, { sport: sport.id, teamId: gameTeamId, xbotgoImported, aiRun: aiRunPath, tags });
+  if (current) window.api.saveTags(current.key, { sport: sport.id, teamId: gameTeamId, xbotgoImported, aiRun: aiRunPath, tags, drawings: Draw.drawings });
 }
 
 const esc = (str) => String(str).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
@@ -222,7 +226,8 @@ function renderTags() {
       + (t.status === 'suggested'
         ? ` <span class="conf">AI ${Math.round((t.confidence ?? 0) * 100)}%</span><button class="x ok" data-ok="${i}" title="Keep this play">✓</button><button class="no" data-no="${i}" title="Not a real play">✗</button>`
         : `<button class="x" data-del="${i}">×</button>`)
-      + `<input class="note" data-note="${i}" placeholder="Add a note…" value="${esc(t.note ?? '')}"></li>`))
+      + `<input class="note" data-note="${i}" placeholder="Add a note…" value="${esc(t.note ?? '')}">`
+      + (t === focusTag ? Clips.row(t, i) : '') + '</li>'))
     .join('');
   renderMarkers();
 }
@@ -231,6 +236,7 @@ function renderMarkers() {
   const d = media.duration;
   $('markers').innerHTML = d
     ? tags.map((t, i) => (visible(t) ? `<i data-i="${i}" class="${t.status === 'suggested' ? 'suggested' : ''}" style="left:${(t.time / d) * 100}%;--c:${t.color}" title="${fmt(t.time)} ${t.label}"></i>` : '')).join('')
+      + Draw.markers(d)
     : '';
 }
 
@@ -239,6 +245,7 @@ let clipEnd = null;
 function playClip(i) {
   const t = tags[i];
   focusTag = t;
+  renderTags();
   renderPlayers();
   media.currentTime = Math.max(0, t.time - t.before);
   clipEnd = t.time + t.after;
@@ -288,10 +295,12 @@ $('tagList').onclick = (e) => {
     return;
   }
   if (e.target.dataset.note !== undefined) return;
+  if (e.target.closest('.clip-row')) return Clips.onRowClick(e);
   const li = e.target.closest('li');
   if (li) playClip(Number(li.dataset.i));
 };
 $('tagList').onchange = (e) => {
+  if (e.target.closest('.clip-row')) return Clips.onRowChange(e);
   if (e.target.dataset.note === undefined) return;
   tags[Number(e.target.dataset.note)].note = e.target.value.trim();
   save();
@@ -316,7 +325,10 @@ $('aiImport').onclick = async () => {
 };
 $('aiPlayers').onclick = () => AiPlayers.open(aiRunPath);
 $('clearTags').onclick = clearTags;
-$('markers').onclick = (e) => { if (e.target.dataset.i !== undefined) playClip(Number(e.target.dataset.i)); };
+$('markers').onclick = (e) => {
+  if (e.target.dataset.i !== undefined) playClip(Number(e.target.dataset.i));
+  if (e.target.dataset.drawing !== undefined) { media.pause(); media.currentTime = Number(e.target.dataset.drawing); }
+};
 
 const mediaEvents = {
   play: () => ($('play').textContent = '⏸'),
@@ -373,7 +385,9 @@ document.addEventListener('keydown', (e) => {
   if (/^[0-9]$/.test(e.key)) return typeDigit(e.key);
   if (e.key === '-') return nudgeSpeed(-1);
   if (e.key === '+' || e.key === '=') return nudgeSpeed(1);
-  if (e.key.toLowerCase() === 'u') return undo();
+  if (e.key.toLowerCase() === 'u') return Draw.active ? Draw.undo() : undo();
+  if (e.key.toLowerCase() === 'd') return $('drawBtn').click();
+  if (e.key === 'Escape' && Draw.active) return Draw.close();
   if (e.key === ' ') { e.preventDefault(); $('play').click(); return; }
   if (e.key === 'ArrowLeft') return $('back').click();
   if (e.key === 'ArrowRight') return $('fwd').click();
