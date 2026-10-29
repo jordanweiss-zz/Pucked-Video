@@ -35,6 +35,7 @@ async function init() {
   Clips.wire();
   Draw.wire();
   Chapters.wire();
+  Crop.wire();
   await Teams.load();
   Teams.onChange = () => { renderTeamSelect(); renderPlayers(); renderTags(); };
   Teams.wire();
