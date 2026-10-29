@@ -11,24 +11,49 @@ npm install
 npm start
 ```
 
-## What works now
+## What it does
 
-- Opening a local MP4 straight from disk, with no upload, so files up to 30 GB work
-- Play and pause, 5-second skips, frame-by-frame stepping, and speeds from 0.25× to 2×
-- A sport selector (Hockey, Soccer) that switches the set of tag buttons
-- One-key tagging (G = Goal, S = Shot, and so on), with a tag list you can click to jump to a play
-- Tags saved automatically next to the video as `<video>.tags.json`
-- Bundled ffmpeg (checked at startup) for exporting clips later
-- XBotGo highlight-button presses imported as Highlight tags
-- YouTube links, with the same tagging and stepping
-- Teams and rosters, so a tag can say which player it's about
-- Clips: change how much of each play a tag covers, save a clip as an MP4, or **Make reel** from the plays and player you pick, with the play name shown on each clip. Encoding uses the graphics card when it can.
-- **Draw** (D) on a paused frame with arrows, lines, circles and a pen, then **Save picture** to share it
-- **Auto highlights**: a reel of the best 1, 2, 3 or 5 minutes, picked from your tags, XBotGo clicks and AI plays (goals first, then plays with a player, plays close together, and plays where the camera was swinging)
-- **Auto-Cut**: listens for the referee's whistle and reads the XBotGo camera log to find stoppages, shades them on the timeline, can skip them while you watch, and saves a condensed game (no re-encoding, so it takes a minute). Tagged plays are never cut.
-- **Follow a player**: pick anyone on your roster, or anyone Hockey AI tracked, and step through every stretch of the game they were in (Prev/Next or [ and ]), play only their stretches back to back, or save them as one video. It uses Hockey AI's `<run>_presence.json` when the game has been analyzed, and the plays tagged with that player otherwise.
-- **YouTube chapters** made from your tags, ready to paste into a video description
-- Hockey AI (optional, runs on your PC): set it up in **Hockey AI**, then use **Analyze game** on a game. You click a few rink markings once per game (**Set up rink**). The analysis runs overnight, and the plays it finds show up as suggestions to keep or drop. **AI players** fixes the jersey numbers it read, and the **post-game report** prints a summary. The app runs Hockey_AI as described in its `docs/app_contract.md`.
+### Watching and tagging
+- Opens local MP4s straight from disk with no upload, so files up to 30 GB work. YouTube links work too, with the same tagging and stepping.
+- Play and pause, 5-second skips, frame-by-frame stepping, and speeds from 0.25× to 2×.
+- A sport selector (Hockey, Soccer) that switches the set of tag buttons.
+- One-key tagging (G = Goal, S = Shot, and so on), with a tag list you can click to jump to a play. Tags are saved next to the video as `<video>.tags.json`.
+- XBotGo highlight-button presses are imported as Highlight tags.
+- **Teams & rosters**, so a tag can say which player it's about (type the jersey number after tagging).
+- **Draw** (D) on a paused frame with arrows, lines, circles and a pen, then **Save picture** to share it.
+
+### Clips and reels
+- Change how much of each play a tag covers, then **Save clip** as an MP4.
+- **Make reel** joins the plays and player you pick, with the play name shown at the start of each clip.
+- **Save 9:16** and vertical reels for phones and social media. **Frame 9:16** lets you drag to choose which part of the picture to keep.
+- **Team logo** in a corner of clips and reels, with size and see-through settings.
+- **Auto highlights** builds a reel of the best 1, 2, 3 or 5 minutes from your tags, XBotGo clicks and AI plays. Goals come first, then plays with a player, plays close together, and plays where the camera was swinging.
+- **Auto-Cut** finds the stoppages by listening for the referee's whistle and reading the XBotGo camera log. It shades them on the timeline, can skip them while you watch, and saves a condensed game with no re-encoding, so it takes about a minute. Tagged plays are never cut.
+- **Follow a player**: pick anyone on your roster, or anyone Hockey AI tracked, and step through every stretch of the game they were in (Prev/Next, or `[` and `]`). You can play only their stretches back to back, or save them as one video.
+- **YouTube chapters** made from your tags, ready to paste into a video description.
+- Encoding uses the graphics card when it can (AMD, Apple, NVIDIA or Intel), and the bundled ffmpeg otherwise.
+
+### Hockey AI (optional, runs on your own computer)
+- Set it up in **Hockey AI**, then use **Analyze game** on a game. You click a few rink markings once per game in **Set up rink**.
+- The analysis runs for a few hours. The plays it finds show up as suggestions to keep (✓) or drop (✗).
+- **AI players** fixes the jersey numbers it read, and the **post-game report** makes a printable PDF summary.
+- The app runs [Hockey_AI](https://github.com/OsikDerek/Hockey_AI) as described in its `docs/app_contract.md`. Follow a player uses its `<run>_presence.json`.
+
+Every setting is in the app's screens. There are no config files to edit.
+
+## Not tested yet on a real PC
+
+These were built and tested in a headless test setup but haven't been tried on the Windows PC yet:
+- Graphics-card encoding (`h264_amf`) on an H.265 game.
+- Auto-Cut's whistle detection on real rink sound. Its thresholds are a first guess.
+- The full Hockey AI run from the app.
+
+## Still to come
+
+- Game library: a home screen of all your games (work in progress on the `feat/library` branch)
+- Periods and game clock
+- Syncing sound from a separate recorder
+- Running the AI on another computer (for example a Mac Mini) on your home network
 
 ## Keyboard
 
