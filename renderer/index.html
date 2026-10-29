@@ -36,6 +36,7 @@
           <button id="drawSave" title="Save this frame with the drawing as a picture">Save picture</button>
           <button id="drawDone">Done</button>
         </div>
+        <svg id="cropLayer" class="crop-layer" hidden></svg>
         <svg id="rinkMarks" class="rink-marks" hidden></svg>
         <div id="yt" class="yt" hidden></div>
         <p id="placeholder">Open an MP4 to start reviewing.</p>
@@ -176,6 +177,22 @@
     <p class="row-form"><label>Player <select id="reelPlayer"></select></label></p>
     <p><label><input type="checkbox" id="reelSuggested"> Include AI plays you haven't reviewed yet</label></p>
     <p><label><input type="checkbox" id="reelOverlay" checked> Show the play and player at the start of each clip</label></p>
+    <p class="row-form"><label><input type="radio" name="reelShape" id="reelWide" checked> Wide (16:9)</label>
+      <label><input type="radio" name="reelShape" id="reelVertical"> Vertical (9:16) for phones</label></p>
+    <p id="reelSoft" class="muted" hidden>This game is 1080p, so vertical clips use a 608-pixel-wide slice and look a little soft. Use <b>Frame 9:16</b> under a tag to choose which part of the picture it shows.</p>
+    <h3>Team logo</h3>
+    <div class="logo-row">
+      <img id="logoPreview" class="logo-preview" alt="" hidden>
+      <div>
+        <p class="row-form"><label><input type="checkbox" id="logoOn"> Put the logo on clips and reels</label></p>
+        <p class="row-form"><span id="logoName" class="muted"></span> <button id="logoPick">Choose logo…</button></p>
+        <p class="row-form">
+          <select id="logoCorner" title="Corner"><option value="tr">Top right</option><option value="tl">Top left</option><option value="br">Bottom right</option><option value="bl">Bottom left</option></select>
+          <label>Size <input id="logoSize" type="range" min="5" max="30" step="1"></label>
+          <label>See-through <input id="logoOpacity" type="range" min="20" max="100" step="5"></label>
+        </p>
+      </div>
+    </div>
     <p id="reelSummary" class="muted"></p>
     <p class="row-form"><button id="reelSave">Save reel…</button></p>
   </dialog>
@@ -216,6 +233,7 @@
   <script src="rink.js"></script>
   <script src="analyze.js"></script>
   <script src="clips.js"></script>
+  <script src="crop.js"></script>
   <script src="draw.js"></script>
   <script src="chapters.js"></script>
   <script src="app.js"></script>

@@ -7,7 +7,7 @@ const Clips = {
 
   window(t) {
     const end = t.time + t.after;
-    return { start: Math.max(0, t.time - t.before), end: media.duration ? Math.min(media.duration, end) : end };
+    return { start: Math.max(0, t.time - t.before), end: media.duration ? Math.min(media.duration, end) : end, cropX: t.cropX ?? 0.5 };
   },
 
   canSave: () => Boolean(current?.path),
@@ -17,13 +17,17 @@ const Clips = {
     return `<div class="clip-row">Clip <input type="number" min="0" max="30" step="1" data-before="${i}" value="${t.before}" title="Seconds before the tag"> s before,`
       + ` <input type="number" min="0" max="30" step="1" data-after="${i}" value="${t.after}" title="Seconds after the tag"> s after`
       + ` <button data-preview="${i}" title="Play this clip">▶</button>`
-      + (this.canSave() ? ` <button data-save="${i}" title="Save this clip as an MP4">Save clip</button>` : '') + '</div>';
+      + (this.canSave() ? ` <button data-save="${i}" title="Save this clip as an MP4">Save clip</button>`
+        + ` <button data-save9="${i}" title="Save a vertical (9:16) copy for phones and social media">Save 9:16</button>`
+        + ` <button data-frame="${i}" class="${Crop.tag === t ? 'on' : ''}" title="Choose which part of the picture the 9:16 copy shows">Frame 9:16</button>` : '') + '</div>';
   },
 
   onRowClick(e) {
-    const { preview, save } = e.target.dataset;
+    const { preview, save, save9, frame } = e.target.dataset;
     if (preview !== undefined) playClip(Number(preview));
-    if (save !== undefined) this.saveTag(tags[Number(save)]);
+    if (save !== undefined) this.saveTag(tags[Number(save)], false);
+    if (save9 !== undefined) this.saveTag(tags[Number(save9)], true);
+    if (frame !== undefined) { Crop.toggle(tags[Number(frame)]); renderTags(); }
   },
 
   onRowChange(e) {
@@ -44,10 +48,10 @@ const Clips = {
 
   stamp: (s) => `${Math.floor(s / 60)}m${String(Math.floor(s % 60)).padStart(2, '0')}s`,
 
-  async saveTag(t) {
+  async saveTag(t, vertical) {
     if (!this.canSave()) return alert('Clips can be saved from game videos on your computer, not YouTube links.');
-    const out = await window.api.saveVideoAs(`${this.base()} - ${t.label} ${this.stamp(t.time)}.mp4`);
-    if (out) this.start([{ ...this.window(t), label: this.label(t) }], out, true);
+    const out = await window.api.saveVideoAs(`${this.base()} - ${t.label} ${this.stamp(t.time)}${vertical ? ' 9x16' : ''}.mp4`);
+    if (out) this.start([{ ...this.window(t), label: this.label(t) }], out, true, vertical);
   },
 
   // --- Reels ---
@@ -70,6 +74,8 @@ const Clips = {
       + [...players.values()].sort((a, b) => (Number(a.number) || 999) - (Number(b.number) || 999))
         .map((p) => `<option value="${esc(p.id)}">${esc(Teams.label(p))}</option>`).join('');
     this.renderReel();
+    this.renderLogo();
+    $('reelVertical').onchange();
     $('reelDialog').showModal();
   },
 
@@ -101,21 +107,54 @@ const Clips = {
     const clips = this.reelClips();
     const player = $('reelPlayer').selectedOptions[0];
     const name = $('reelPlayer').value ? `${player.textContent} highlights` : 'Highlights';
-    const out = await window.api.saveVideoAs(`${this.base()} - ${name}.mp4`);
+    const vertical = $('reelVertical').checked;
+    const out = await window.api.saveVideoAs(`${this.base()} - ${name}${vertical ? ' 9x16' : ''}.mp4`);
     if (!out) return;
     $('reelDialog').close();
-    this.start(clips, out, $('reelOverlay').checked);
+    this.start(clips, out, $('reelOverlay').checked, vertical);
   },
 
-  // The play name as a PNG (base64) sized for the video: white text on a dark box.
-  overlayImage(text) {
-    const h = video.videoHeight || 1080;
-    const size = Math.round(h / 22);
-    const pad = Math.round(size * 0.45);
+  // --- Logo, kept in the app's settings so every clip and reel can use it ---
+  get logo() {
+    AI.settings.logo ??= { file: null, on: false, corner: 'tr', size: 12, opacity: 0.85 };
+    return AI.settings.logo;
+  },
+
+  saveLogo() { window.api.saveSettings(AI.settings); },
+
+  renderLogo() {
+    const l = this.logo;
+    $('logoName').textContent = l.file ? l.file.split(/[\\/]/).pop() : 'No logo chosen';
+    $('logoOn').checked = Boolean(l.on && l.file);
+    $('logoOn').disabled = !l.file;
+    $('logoCorner').value = l.corner;
+    $('logoSize').value = l.size;
+    $('logoOpacity').value = Math.round(l.opacity * 100);
+    $('logoPreview').hidden = !l.file;
+    if (l.file) $('logoPreview').src = `file:///${encodeURI(l.file.replace(/\\/g, '/').replace(/^\/+/, '')).replace(/#/g, '%23').replace(/\?/g, '%3F')}`;
+  },
+
+  // What every clip in one export looks like: shape, output height and logo.
+  look(vertical) {
+    const outW = vertical ? 1080 : video.videoWidth || 1920;
+    const outH = vertical ? 1920 : video.videoHeight || 1080;
+    const l = this.logo;
+    return {
+      vertical, outW, outH,
+      logo: l.on && l.file ? { file: l.file, corner: l.corner, opacity: l.opacity, width: Math.round((outW * l.size) / 100) } : null,
+    };
+  },
+
+  // The play name as a PNG (base64) sized for the clip: white text on a dark box, never wider than the picture.
+  overlayImage(text, outW, outH) {
     const c = document.createElement('canvas');
     const ctx = c.getContext('2d');
-    const font = `600 ${size}px "Segoe UI", system-ui, sans-serif`;
+    let size = Math.round(outH / (outH > outW ? 34 : 22));
+    let font = `600 ${size}px "Segoe UI", system-ui, sans-serif`;
     ctx.font = font;
+    const fit = (outW * 0.9) / (ctx.measureText(text).width + size);
+    if (fit < 1) { size = Math.floor(size * fit); font = `600 ${size}px "Segoe UI", system-ui, sans-serif`; ctx.font = font; }
+    const pad = Math.round(size * 0.45);
     c.width = Math.ceil(ctx.measureText(text).width + pad * 2);
     c.height = Math.ceil(size * 1.3 + pad * 2);
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
@@ -129,9 +168,10 @@ const Clips = {
     return c.toDataURL('image/png').split(',')[1];
   },
 
-  async start(clips, out, overlay) {
-    if (overlay) clips = clips.map((c) => ({ ...c, overlay: c.label ? this.overlayImage(c.label) : null }));
-    const res = await window.api.exportClips({ video: current.path, clips, out });
+  async start(clips, out, overlay, vertical = false) {
+    const look = this.look(vertical);
+    if (overlay) clips = clips.map((c) => ({ ...c, overlay: c.label ? this.overlayImage(c.label, look.outW, look.outH) : null }));
+    const res = await window.api.exportClips({ video: current.path, clips, out, look });
     if (!res.ok) return alert(res.error);
     this.saving = true;
     this.out = out;
@@ -161,6 +201,19 @@ const Clips = {
     $('reelPlayer').onchange = () => this.renderReel();
     $('reelSuggested').onchange = () => this.renderReel();
     $('reelSave').onclick = () => this.saveReel();
+    $('reelVertical').onchange = () => { $('reelSoft').hidden = !$('reelVertical').checked || (video.videoHeight || 1080) > 1080; };
+    $('reelWide').onchange = $('reelVertical').onchange;
+    $('logoPick').onclick = async () => {
+      const file = await window.api.pickLogo();
+      if (!file) return;
+      Object.assign(this.logo, { file, on: true });
+      this.saveLogo();
+      this.renderLogo();
+    };
+    $('logoOn').onchange = () => { this.logo.on = $('logoOn').checked; this.saveLogo(); };
+    $('logoCorner').onchange = () => { this.logo.corner = $('logoCorner').value; this.saveLogo(); };
+    $('logoSize').onchange = () => { this.logo.size = Number($('logoSize').value); this.saveLogo(); };
+    $('logoOpacity').onchange = () => { this.logo.opacity = Number($('logoOpacity').value) / 100; this.saveLogo(); };
     $('exportCancel').onclick = () => window.api.cancelClips();
     $('exportShow').onclick = () => window.api.showFile(this.out);
     $('exportClose').onclick = () => { $('exportToast').hidden = true; };

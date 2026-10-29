@@ -40,18 +40,52 @@ function send(win, state) {
   if (!win.isDestroyed()) win.webContents.send('clips:progress', state);
 }
 
-// Cut one clip to `out`, reporting progress from 0 to 1 through onProgress.
+// Where the logo sits, `m` pixels in from the edges.
+const CORNERS = {
+  tl: (m) => `x=${m}:y=${m}`,
+  tr: (m) => `x=W-w-${m}:y=${m}`,
+  bl: (m) => `x=${m}:y=H-h-${m}`,
+  br: (m) => `x=W-w-${m}:y=H-h-${m}`,
+};
+
+// The filter graph for one clip: an optional 9:16 crop, the team logo, then the play name.
 // The play name is drawn by the app as a picture (not every ffmpeg build can draw text) and laid over
 // the first 4 seconds of the clip.
-function encodeClip(cwd, video, clip, out, onProgress) {
+function clipFilters(clip, { vertical, logo, outH }) {
+  const parts = [];
+  let v = '[0:v]';
+  let next = 1;
+  if (vertical) {
+    // cropX picks where the 9:16 window sits across the picture, 0 = left edge, 1 = right edge.
+    const cx = Math.max(0, Math.min(1, clip.cropX ?? 0.5)).toFixed(3);
+    parts.push(`${v}crop=w=trunc(ih*9/32)*2:h=ih:x=(iw-trunc(ih*9/32)*2)*${cx}:y=0,scale=1080:1920,setsar=1[c]`);
+    v = '[c]';
+  }
+  if (logo) {
+    const m = Math.round(outH / 30);
+    parts.push(`[${next}:v]scale=${logo.width}:-1,format=rgba,colorchannelmixer=aa=${logo.opacity}[lg]`);
+    parts.push(`${v}[lg]overlay=${(CORNERS[logo.corner] ?? CORNERS.tr)(m)}[l]`);
+    v = '[l]';
+    next += 1;
+  }
+  if (clip.overlay) {
+    parts.push(`${v}[${next}:v]overlay=x=H/30:y=H-h-H/30:enable='lt(t,4)'[t]`);
+    v = '[t]';
+  }
+  parts.push(`${v}format=yuv420p[v]`);
+  return parts.join(';');
+}
+
+// Cut one clip to `out`, reporting progress from 0 to 1 through onProgress.
+function encodeClip(cwd, video, clip, out, look, onProgress) {
   const dur = Math.max(0.1, clip.end - clip.start);
   const input = ['-ss', clip.start.toFixed(3), '-i', video];
-  let videoArgs = ['-map', '0:v:0', '-vf', 'format=yuv420p'];
+  if (look.logo) input.push('-i', look.logo.file);
   if (clip.overlay) {
     fs.writeFileSync(path.join(cwd, `label${clip.i}.png`), Buffer.from(clip.overlay, 'base64'));
     input.push('-i', `label${clip.i}.png`);
-    videoArgs = ['-filter_complex', "[0:v][1:v]overlay=x=H/30:y=H-h-H/30:enable='lt(t,4)',format=yuv420p[v]", '-map', '[v]'];
   }
+  const videoArgs = ['-filter_complex', clipFilters(clip, look), '-map', '[v]'];
   const args = ['-hide_banner', '-y', ...input, '-t', dur.toFixed(3), ...videoArgs, '-map', '0:a:0?', ...encoder.args,
     '-c:a', 'aac', '-b:a', '160k', '-ar', '48000', '-ac', '2', '-movflags', '+faststart',
     '-progress', 'pipe:1', '-nostats', out];
@@ -85,7 +119,9 @@ function joinClips(cwd, files, out) {
   });
 }
 
-async function exportClips(win, { video, clips, out }) {
+// `look` is the same for every clip in a reel, so they can be joined without encoding again:
+// { vertical, outH, logo: { file, width, opacity, corner } | null }.
+async function exportClips(win, { video, clips, out, look = {} }) {
   job = { child: null, cancelled: false };
   const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'pucked-clips-'));
   try {
@@ -96,7 +132,7 @@ async function exportClips(win, { video, clips, out }) {
     for (const [i, clip] of clips.entries()) {
       const file = clips.length === 1 ? out : path.join(cwd, `clip${i}.mp4`);
       const len = clip.end - clip.start;
-      await encodeClip(cwd, video, { ...clip, i }, file, (f) => {
+      await encodeClip(cwd, video, { ...clip, i }, file, look, (f) => {
         send(win, { state: 'running', pct: ((doneSec + f * len) / total) * 100, clip: i + 1, clips: clips.length, encoder: encoder.name });
       });
       doneSec += len;
@@ -131,6 +167,13 @@ function register() {
     job.cancelled = true;
     job.child?.kill();
     return true;
+  });
+
+  ipcMain.handle('logo:pick', async (e) => {
+    const { canceled, filePaths } = await dialog.showOpenDialog(BrowserWindow.fromWebContents(e.sender), {
+      title: 'Choose your team logo', properties: ['openFile'], filters: [{ name: 'Pictures', extensions: ['png', 'jpg', 'jpeg', 'webp'] }],
+    });
+    return canceled ? null : filePaths[0];
   });
 
   ipcMain.handle('frame:save-as', async (e, defaultPath) => {

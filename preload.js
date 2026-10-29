@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld('api', {
   saveVideoAs: (defaultPath) => ipcRenderer.invoke('clips:save-as', defaultPath),
   exportClips: (opts) => ipcRenderer.invoke('clips:export', opts),
   cancelClips: () => ipcRenderer.invoke('clips:cancel'),
+  pickLogo: () => ipcRenderer.invoke('logo:pick'),
   savePictureAs: (defaultPath) => ipcRenderer.invoke('frame:save-as', defaultPath),
   saveFrame: (opts) => ipcRenderer.invoke('frame:save', opts),
   showFile: (file) => ipcRenderer.invoke('clips:show', file),

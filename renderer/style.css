@@ -152,3 +152,15 @@ button:disabled { opacity: 0.5; cursor: default; }
 .markers i.drawn { background: #ffd33d; width: 5px; height: 5px; border-radius: 50%; bottom: 1px; margin-left: -2px; }
 .ch-text { width: 100%; background: #0c0d10; color: var(--text); border: 1px solid #3a3f4a; border-radius: 6px; padding: 8px; font: 12px ui-monospace, monospace; resize: vertical; }
 #chDialog p label { margin-right: 12px; }
+
+/* Framing a vertical clip */
+.crop-layer { position: absolute; inset: 0; width: 100%; height: 100%; cursor: ew-resize; touch-action: none; z-index: 3; }
+.crop-layer .crop-dim { fill: rgba(0, 0, 0, 0.6); }
+.crop-layer .crop-box { fill: none; stroke: #ffd33d; }
+.crop-layer .crop-hint { fill: #fff; text-anchor: middle; paint-order: stroke; stroke: rgba(0, 0, 0, 0.7); stroke-width: 4px; pointer-events: none; }
+#tagList .clip-row button.on { background: var(--accent, #3e8bff); color: #fff; }
+
+/* Team logo on clips and reels */
+.logo-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.logo-preview { width: 48px; height: 48px; object-fit: contain; background: #2a2e37; border-radius: 6px; border: 1px solid #3a3f4a; }
+.logo-preview:not([src]), .logo-preview[src=""] { visibility: hidden; }
