@@ -141,7 +141,7 @@ const Analyze = {
 
   async start(fresh = false) {
     if (fresh && !confirm('Throw away what was already done and analyze the whole game again from the start?')) return;
-    const res = await window.api.analyzeGame(AI.dir, current.path, { fresh });
+    const res = await window.api.analyzeGame(AI.dir, current.path, { fresh, render: $('anRender').checked });
     if (!res.ok) return alert(res.error);
     this.job = await window.api.getAiJob();
     this.render();
@@ -184,6 +184,8 @@ const Analyze = {
     $('aiJobBadge').onclick = () => this.open();
     $('anStart').onclick = () => this.start();
     $('anFresh').onclick = () => this.start(true);
+    $('anRender').checked = Boolean(AI.settings.aiRender);
+    $('anRender').onchange = () => { AI.settings.aiRender = $('anRender').checked; window.api.saveSettings(AI.settings); };
     $('repFocus').onchange = () => this.renderReportChoices(this.status);
     $('repPlayers').onchange = () => this.renderReportChoices(this.status);
     $('anCancel').onclick = async () => {

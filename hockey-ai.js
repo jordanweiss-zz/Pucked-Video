@@ -211,7 +211,7 @@ function friendlyError(msg) {
 
 // Steps 1-4 of the contract. Weights are hours of work per hour of video, for the progress bar and estimate.
 // Re-running a step's same command resumes from its checkpoint; `fresh` throws that away and starts over.
-function analyzeSteps(f, startOffset, fresh = false) {
+function analyzeSteps(f, startOffset, fresh = false, render = false) {
   const off = String(startOffset);
   const restart = fresh ? ['--fresh'] : [];
   return [
@@ -227,7 +227,9 @@ function analyzeSteps(f, startOffset, fresh = false) {
       id: 'analyze', label: 'Find the plays (uses the graphics card)', weight: 4.5,
       skip: () => fs.existsSync(f.report) && mtime(f.report) > mtime(f.camera),
       args: () => ['main.py', '-i', f.video, '-o', f.annotated, '--gpu', '--xbotgo-track', f.track, '--start-offset', off,
-        '--camera-calib', f.camera, '--event-config', f.events, ...restart],
+        '--camera-calib', f.camera, '--event-config', f.events, ...restart,
+        // The app draws its own overlays, so the annotated copy (about 12 GB per game hour) is optional.
+        ...(render ? [] : ['--no-render'])],
     },
     {
       id: 'players', label: 'Read jersey numbers', weight: 0.75,
@@ -315,7 +317,7 @@ function register() {
     if (problem) return { ok: false, error: problem };
     writeGameEvents(hai, f);
     if (opts.fresh) fs.rmSync(f.checkpoint, { force: true });
-    runJob(hai, 'analyze', video, analyzeSteps(f, 0, Boolean(opts.fresh)));
+    runJob(hai, 'analyze', video, analyzeSteps(f, 0, Boolean(opts.fresh), Boolean(opts.render)));
     return { ok: true };
   });
 
