@@ -51,6 +51,7 @@
         <div class="timeline">
           <input id="scrubber" type="range" min="0" max="1000" value="0">
           <div id="cutStrip" class="cut-strip"></div>
+          <div id="followStrip" class="follow-strip"></div>
           <div id="markers" class="markers"></div>
         </div>
         <button id="drawBtn" title="Draw on the video (D)">✎ Draw</button>
@@ -59,10 +60,20 @@
           <option value="1" selected>1×</option><option value="1.5">1.5×</option><option value="2">2×</option>
         </select>
       </div>
+      <div id="followBar" class="follow-bar" hidden>
+        <span>Following</span> <select id="followWho" title="Who to follow"></select>
+        <button id="followPrev" title="Previous stretch ([)">◀ Prev</button>
+        <button id="followNext" title="Next stretch (])">Next ▶</button>
+        <label><input type="checkbox" id="followPlay"> Play all</label>
+        <button id="followSave" title="Save all of this player's stretches as one video">Save as reel…</button>
+        <span id="followInfo" class="muted"></span>
+        <button id="followClose" class="x" title="Stop following">×</button>
+      </div>
       <div id="tagButtons" class="tag-buttons"></div>
       <div class="player-bar">
         <select id="gameTeam" title="Your team in this game"></select>
         <div id="playerButtons" class="player-buttons"></div>
+        <button id="followBtn" title="Step through every stretch of the game one player was in">Follow a player</button>
         <span class="muted" id="playerHint"></span>
       </div>
     </section>
@@ -268,6 +279,7 @@
   <script src="draw.js"></script>
   <script src="chapters.js"></script>
   <script src="autocut.js"></script>
+  <script src="follow.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

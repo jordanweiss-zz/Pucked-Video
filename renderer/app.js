@@ -37,6 +37,7 @@ async function init() {
   Chapters.wire();
   Crop.wire();
   AutoCut.wire();
+  Follow.wire();
   await Teams.load();
   Teams.onChange = () => { renderTeamSelect(); renderPlayers(); renderTags(); };
   Teams.wire();
@@ -101,6 +102,7 @@ async function loadSavedTags() {
   added.length = 0;
   renderTeamSelect();
   renderPlayers();
+  await Follow.load();
 }
 
 function renderTeamSelect() {
@@ -195,6 +197,7 @@ function clearTags() {
 function importAiRun(run) {
   const result = AI.importRun(run, Teams.get(gameTeamId));
   aiRunPath = run.exportPath;
+  Follow.run = run;
   $('aiPlayers').hidden = false;
   renderTags();
   save();
@@ -242,6 +245,7 @@ function renderMarkers() {
       + Draw.markers(d)
     : '';
   AutoCut.render();
+  if (Follow.who) { Follow.parts = Follow.stretches(Follow.who); Follow.render(); }
 }
 
 // Clicking a tag plays its clip window (before..after) and pauses at the end of it.
@@ -342,6 +346,7 @@ const mediaEvents = {
     if (media.duration) $('scrubber').value = (media.currentTime / media.duration) * 1000;
     if (clipEnd !== null && media.currentTime >= clipEnd) { media.pause(); stopClip(); }
     AutoCut.onTime();
+    Follow.onTime();
   },
   loadedmetadata: renderMarkers,
 };
@@ -396,6 +401,8 @@ document.addEventListener('keydown', (e) => {
   if (e.key === ' ') { e.preventDefault(); $('play').click(); return; }
   if (e.key === 'ArrowLeft') return $('back').click();
   if (e.key === 'ArrowRight') return $('fwd').click();
+  if (e.key === '[' && Follow.who) return Follow.step(-1);
+  if (e.key === ']' && Follow.who) return Follow.step(1);
   if (e.key === ',') return step(-1);
   if (e.key === '.') return step(1);
   const def = sport?.tags.find((t) => t.key === e.key.toLowerCase());

@@ -55,6 +55,7 @@ function loadAiRun(exportPath) {
     thumbBase: `${fileUrl(path.dirname(exportPath))}/`,
     data,
     players: readJson(`${base}_players.json`, null),
+    presence: readJson(`${base}_presence.json`, null), // when each tracked player was on screen
     teams: readJson(`${base}_report.json`, null)?.summary?.teams ?? null,
   };
 }
