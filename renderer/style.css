@@ -83,3 +83,15 @@ dialog .x { margin-left: auto; padding: 2px 8px; }
 .ai-types td { padding: 4px; }
 .ai-types input[type=range] { width: 120px; vertical-align: middle; margin-right: 6px; }
 dialog input[type=number] { width: 64px; }
+
+/* AI players: name the players Hockey AI tracked. */
+.ai-players-dialog { width: min(900px, 92vw); }
+.ai-player-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; max-height: 60vh; overflow-y: auto; margin-bottom: 8px; }
+.ai-player { background: #23262d; border-radius: 8px; padding: 8px; display: flex; flex-direction: column; gap: 4px; border-top: 3px solid var(--c, #3a3f4a); }
+.ai-player img { width: 100%; height: 150px; object-fit: contain; background: #000; border-radius: 4px; cursor: pointer; }
+.ai-player .noimg { height: 150px; display: flex; align-items: center; justify-content: center; background: #000; border-radius: 4px; }
+.ai-player .row-form { align-items: center; }
+.ai-player .guess { color: #b48cff; font-size: 11px; }
+.ai-player .who { color: #c9d4ff; font-size: 12px; min-height: 1em; }
+.ai-player.changed { outline: 1px solid var(--accent); }
+.ai-player .ok { padding: 2px 6px; }

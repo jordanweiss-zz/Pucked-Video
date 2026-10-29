@@ -10,6 +10,7 @@ let sport = null;
 let current = null; // local file { key, path, url, size } or YouTube { key, videoId }
 let tags = [];
 let xbotgoImported = false; // highlight clicks from the camera already turned into tags
+let aiRunPath = null; // this game's imported Hockey_AI results, for the AI players screen
 let gameTeamId = null; // your team in this game; its roster fills the player bar
 let focusTag = null; // the tag a player pick applies to: the one just added or clicked
 const added = []; // tags added this session, newest last, for Undo
@@ -28,6 +29,7 @@ async function init() {
   setSport('hockey');
   await AI.load();
   AI.wire();
+  AiPlayers.wire();
   await Teams.load();
   Teams.onChange = () => { renderTeamSelect(); renderPlayers(); renderTags(); };
   Teams.wire();
@@ -81,6 +83,8 @@ async function loadSavedTags() {
   tags = saved?.tags ?? [];
   if (saved?.sport) { $('sport').value = saved.sport; setSport(saved.sport); }
   xbotgoImported = Boolean(saved?.xbotgoImported);
+  aiRunPath = saved?.aiRun ?? null;
+  $('aiPlayers').hidden = !aiRunPath;
   // A new game defaults to your only team, if you have just one.
   gameTeamId = saved?.teamId ?? (Teams.data.teams.length === 1 ? Teams.data.teams[0].id : null);
   focusTag = null;
@@ -178,7 +182,7 @@ function clearTags() {
 }
 
 function save() {
-  if (current) window.api.saveTags(current.key, { sport: sport.id, teamId: gameTeamId, xbotgoImported, tags });
+  if (current) window.api.saveTags(current.key, { sport: sport.id, teamId: gameTeamId, xbotgoImported, aiRun: aiRunPath, tags });
 }
 
 const esc = (str) => String(str).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
@@ -285,12 +289,15 @@ $('aiImport').onclick = async () => {
   }
   if (!run) return;
   const { added: n, toReview } = AI.importRun(run, Teams.get(gameTeamId));
+  aiRunPath = run.exportPath;
+  $('aiPlayers').hidden = false;
   renderTags();
   save();
   const plays = (k) => `${k} play${k === 1 ? '' : 's'}`;
   alert(n ? `Added ${plays(n)} for you to review. Click ✓ to keep a play or ✗ to drop it.`
     : toReview ? `No new plays. ${plays(toReview)} still to review.` : 'No new plays in that file.');
 };
+$('aiPlayers').onclick = () => AiPlayers.open(aiRunPath);
 $('clearTags').onclick = clearTags;
 $('markers').onclick = (e) => { if (e.target.dataset.i !== undefined) playClip(Number(e.target.dataset.i)); };
 
@@ -343,7 +350,7 @@ function typeDigit(d) {
 }
 
 document.addEventListener('keydown', (e) => {
-  if ($('teamsDialog').open || $('aiDialog').open) return;
+  if (document.querySelector('dialog[open]')) return;
   if (e.target.matches('input:not([type=range]), select')) return;
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (/^[0-9]$/.test(e.key)) return typeDigit(e.key);

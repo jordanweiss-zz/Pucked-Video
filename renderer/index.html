@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; media-src file: 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' https://www.youtube.com https://s.ytimg.com; frame-src https://www.youtube.com">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; media-src file: 'self'; img-src 'self' file:; style-src 'self' 'unsafe-inline'; script-src 'self' https://www.youtube.com https://s.ytimg.com; frame-src https://www.youtube.com">
   <title>Pucked Video</title>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -57,6 +57,7 @@
       </div>
       <div class="ai-bar">
         <button id="aiImport" title="Load the plays Hockey AI found in this game">Import AI plays</button>
+        <button id="aiPlayers" title="Name the players Hockey AI tracked in this game" hidden>AI players</button>
         <label class="muted"><input type="checkbox" id="showAi" checked> Show suggestions</label>
         <span id="aiCount" class="muted"></span>
       </div>
@@ -102,9 +103,20 @@
     <p class="row-form"><label>Gap between any two plays <input id="aiGap" type="number" min="0" max="120" step="1"> s</label></p>
     <p class="row-form"><button id="aiSave">Save settings</button> <span id="aiStatus" class="muted"></span></p>
   </dialog>
+  <dialog id="aiPlayersDialog" class="ai-players-dialog">
+    <div class="dialog-head">
+      <h2>Players Hockey AI tracked</h2>
+      <form method="dialog"><button>Close</button></form>
+    </div>
+    <p class="muted">Numbers marked "AI guess" were read off jerseys and are often wrong. Fix or confirm them, and type a number for anyone you recognize.</p>
+    <p class="row-form"><label class="muted"><input type="checkbox" id="aiPlayersTodo" checked> Only players that still need a number</label> <span id="aiPlayersCount" class="muted"></span></p>
+    <div id="aiPlayerGrid" class="ai-player-grid"></div>
+    <p class="row-form"><button id="aiPlayersSave">Save names</button> <span id="aiPlayersStatus" class="muted"></span></p>
+  </dialog>
   <script src="youtube.js"></script>
   <script src="teams.js"></script>
   <script src="ai.js"></script>
+  <script src="players.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

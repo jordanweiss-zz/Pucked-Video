@@ -77,6 +77,13 @@ const AI = {
   // accepted and rejected ones are kept, so a re-import never brings back a play you rejected.
   importRun(run, gameTeam) {
     const roster = gameTeam?.players ?? [];
+    // Numbers the user gave a tracked player win over what the run's events say.
+    const byId = Object.fromEntries((run.players?.players ?? []).map((p) => [p.player_id, p]));
+    const numberOf = (e) => (byId[e.player_id]?.source === 'user' ? byId[e.player_id].number : e.player);
+    const rosterPlayer = (num) => {
+      const p = num ? roster.find((x) => String(x.number) === String(num)) : null;
+      return p ? { id: p.id, number: p.number, name: p.name } : null;
+    };
     const key = (type, time) => `${type}@${time.toFixed(1)}`;
     const before = new Set(tags.filter((t) => t.status === 'suggested').map((t) => key(t.aiType, t.time)));
     const kept = tags.filter((t) => !(t.source === 'ai' && t.status === 'suggested'));
@@ -84,7 +91,7 @@ const AI = {
     const fresh = run.data.events
       .filter((e) => !existing.has(key(e.type, e.time_s)))
       .map((e) => {
-        const p = e.player ? roster.find((x) => String(x.number) === String(e.player)) : null;
+        const p = rosterPlayer(numberOf(e));
         return {
           label: this.types[e.type] ?? e.type,
           time: e.time_s, // already in seconds of the source recording
@@ -96,9 +103,17 @@ const AI = {
           aiType: e.type,
           confidence: e.confidence,
           note: e.description ?? '',
-          ...(p ? { player: { id: p.id, number: p.number, name: p.name } } : {}),
+          ...(e.player_id ? { aiPlayerId: e.player_id } : {}),
+          ...(p ? { player: p } : {}),
         };
       });
+    // Plays you already kept follow a player's new number too.
+    for (const t of kept) {
+      const ap = byId[t.aiPlayerId];
+      if (t.source !== 'ai' || ap?.source !== 'user') continue;
+      const p = rosterPlayer(ap.number);
+      if (p) t.player = p; else delete t.player;
+    }
     tags = kept.concat(fresh).sort((a, b) => a.time - b.time);
     return { added: fresh.filter((t) => !before.has(key(t.aiType, t.time))).length, toReview: fresh.length };
   },
