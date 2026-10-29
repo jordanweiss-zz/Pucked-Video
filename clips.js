@@ -133,6 +133,24 @@ function register() {
     return true;
   });
 
+  ipcMain.handle('frame:save-as', async (e, defaultPath) => {
+    const { canceled, filePath } = await dialog.showSaveDialog(BrowserWindow.fromWebContents(e.sender), {
+      title: 'Save picture', defaultPath, filters: [{ name: 'PNG picture', extensions: ['png'] }],
+    });
+    return canceled ? null : filePath;
+  });
+
+  // One frame of the game with the user's drawing laid over it.
+  ipcMain.handle('frame:save', (_e, { video, time, overlay, out }) => new Promise((resolve) => {
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'pucked-frame-'));
+    fs.writeFileSync(path.join(cwd, 'drawing.png'), Buffer.from(overlay, 'base64'));
+    execFile(ffmpegPath, ['-hide_banner', '-y', '-ss', time.toFixed(3), '-i', video, '-i', 'drawing.png',
+      '-filter_complex', '[0:v][1:v]overlay', '-frames:v', '1', out], { cwd, windowsHide: true, maxBuffer: 16 * 1024 * 1024 }, (err, _o, stderr) => {
+      fs.rmSync(cwd, { recursive: true, force: true });
+      resolve(err ? { ok: false, error: String(stderr).trim().split('\n').pop() || err.message } : { ok: true });
+    });
+  }));
+
   ipcMain.handle('clips:show', (_e, file) => shell.showItemInFolder(file));
 }
 

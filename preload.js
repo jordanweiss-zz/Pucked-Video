@@ -28,6 +28,8 @@ contextBridge.exposeInMainWorld('api', {
   saveVideoAs: (defaultPath) => ipcRenderer.invoke('clips:save-as', defaultPath),
   exportClips: (opts) => ipcRenderer.invoke('clips:export', opts),
   cancelClips: () => ipcRenderer.invoke('clips:cancel'),
+  savePictureAs: (defaultPath) => ipcRenderer.invoke('frame:save-as', defaultPath),
+  saveFrame: (opts) => ipcRenderer.invoke('frame:save', opts),
   showFile: (file) => ipcRenderer.invoke('clips:show', file),
   onClipsProgress: (fn) => ipcRenderer.on('clips:progress', (_e, state) => fn(state)),
   checkFfmpeg: () => ipcRenderer.invoke('ffmpeg:check'),
