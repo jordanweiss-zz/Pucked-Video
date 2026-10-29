@@ -22,6 +22,9 @@ npm start
 - XBotGo highlight-button presses imported as Highlight tags
 - YouTube links, with the same tagging and stepping
 - Teams and rosters, so a tag can say which player it's about
+- Clips: change how much of each play a tag covers, save a clip as an MP4, or **Make reel** from the plays and player you pick, with the play name shown on each clip. Encoding uses the graphics card when it can.
+- **Draw** (D) on a paused frame with arrows, lines, circles and a pen, then **Save picture** to share it
+- **YouTube chapters** made from your tags, ready to paste into a video description
 - Hockey AI (optional, runs on your PC): set it up in **Hockey AI**, then use **Analyze game** on a game. You click a few rink markings once per game (**Set up rink**). The analysis runs overnight, and the plays it finds show up as suggestions to keep or drop. **AI players** fixes the jersey numbers it read, and the **post-game report** prints a summary. The app runs Hockey_AI as described in its `docs/app_contract.md`.
 
 ## Keyboard
@@ -33,7 +36,8 @@ npm start
 | , / . | Previous/next frame |
 | Letter keys | Tag (shown on each button) |
 | 0-9 | Pick the player for the last tag, by jersey number |
-| U | Undo the last tag you added |
+| U | Undo the last tag you added (or the last mark while drawing) |
+| D | Draw on the video (Esc to stop) |
 | - / + | Slower/faster |
 
 ## Adding a sport

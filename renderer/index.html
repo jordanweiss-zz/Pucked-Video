@@ -72,6 +72,7 @@
       </div>
       <div class="ai-bar">
         <button id="reelBtn" title="Join the plays you pick into one video">Make reel</button>
+        <button id="chBtn" title="Timestamps for a YouTube description">YouTube chapters</button>
       </div>
       <div class="ai-bar">
         <button id="aiAnalyze" title="Have Hockey AI find the plays in this game (runs overnight)">Analyze game</button>
@@ -150,6 +151,21 @@
     <div id="aiPlayerGrid" class="ai-player-grid"></div>
     <p class="row-form"><button id="aiPlayersSave">Save names</button> <span id="aiPlayersStatus" class="muted"></span></p>
   </dialog>
+  <dialog id="chDialog" class="reel-dialog">
+    <div class="dialog-head">
+      <h2>YouTube chapters</h2>
+      <form method="dialog"><button>Close</button></form>
+    </div>
+    <h3>Plays to list</h3>
+    <div id="chTypes" class="reel-types"></div>
+    <p><label><input type="checkbox" id="chPlayers" checked> Player names</label>
+      <label><input type="checkbox" id="chNotes"> Notes</label>
+      <label><input type="checkbox" id="chEarly" checked> Start a few seconds before each play</label></p>
+    <p class="row-form"><label>Join plays less than <input id="chGap" type="number" min="10" max="120" value="10"> s apart</label>
+      <label>First chapter <input id="chStart" value="Start" size="10"></label></p>
+    <textarea id="chText" class="ch-text" rows="10" readonly></textarea>
+    <p class="row-form"><button id="chCopy">Copy</button> <span id="chNote" class="muted"></span></p>
+  </dialog>
   <dialog id="reelDialog" class="reel-dialog">
     <div class="dialog-head">
       <h2>Make a highlight reel</h2>
@@ -201,6 +217,7 @@
   <script src="analyze.js"></script>
   <script src="clips.js"></script>
   <script src="draw.js"></script>
+  <script src="chapters.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

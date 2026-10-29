@@ -150,3 +150,5 @@ button:disabled { opacity: 0.5; cursor: default; }
 .draw-colors button { width: 22px; height: 22px; padding: 0; border-radius: 50%; background: var(--c); }
 .draw-colors button.on { outline: 2px solid #fff; outline-offset: 1px; background: var(--c); }
 .markers i.drawn { background: #ffd33d; width: 5px; height: 5px; border-radius: 50%; bottom: 1px; margin-left: -2px; }
+.ch-text { width: 100%; background: #0c0d10; color: var(--text); border: 1px solid #3a3f4a; border-radius: 6px; padding: 8px; font: 12px ui-monospace, monospace; resize: vertical; }
+#chDialog p label { margin-right: 12px; }
