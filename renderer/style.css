@@ -171,3 +171,10 @@ button:disabled { opacity: 0.5; cursor: default; }
 .cut-strip b { position: absolute; top: -2px; width: 2px; height: 4px; margin-left: -1px; background: #fff; opacity: 0.8; }
 .cut-progress { margin: 8px 0; }
 .cut-progress .an-bar { margin: 6px 0; }
+
+/* Follow a player: their stretches on the timeline and the bar to step through them */
+.follow-strip { position: absolute; left: 0; right: 0; top: 0; height: 4px; pointer-events: none; }
+.follow-strip i { position: absolute; top: 0; bottom: 0; background: #3ddc84; border-radius: 2px; }
+.follow-bar { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; background: #1f2a24; border: 1px solid #2f5a40; border-radius: 8px; padding: 6px 8px; font-size: 13px; }
+.follow-bar select { background: #2a2e37; color: var(--text); border: 1px solid #3a3f4a; border-radius: 6px; padding: 4px 6px; font: inherit; }
+.follow-bar #followInfo { flex: 1; }
