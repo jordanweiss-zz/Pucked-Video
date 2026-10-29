@@ -70,7 +70,14 @@ const AI = {
     }
     c.cooldown_sec.global = Number($('aiGap').value) || 0;
     await window.api.saveAiEvents(this.dir, c);
-    $('aiStatus').textContent = 'Saved. New settings apply to the next analysis.';
+    if (!aiRunPath) { $('aiStatus').textContent = 'Saved. New settings apply to the next analysis.'; return; }
+    // The open game's plays can be re-picked right away, without the graphics card.
+    $('aiStatus').textContent = 'Saved. Updating this game\'s plays…';
+    const before = tags.filter((t) => t.status === 'suggested').length;
+    const res = await refreshAiPlays();
+    const now = tags.filter((t) => t.status === 'suggested').length;
+    $('aiStatus').textContent = res.ok ? `Saved. This game now has ${now} play${now === 1 ? '' : 's'} to review (was ${before}).`
+      : `Saved, but updating this game's plays failed: ${res.error}`;
   },
 
   // Turn a run's events into suggested tags. Earlier suggestions that weren't accepted are replaced;

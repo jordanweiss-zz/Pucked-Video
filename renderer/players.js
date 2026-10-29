@@ -5,7 +5,8 @@ const AiPlayers = {
   edits: {}, // player_id -> number typed or confirmed in this sitting
   shown: {}, // player_id -> which thumbnail is showing
 
-  teamName: (team) => ({ team_a: 'Team A', team_b: 'Team B' })[team] ?? 'Unknown team',
+  // The run names each team by its jersey colors, e.g. "dark/black/gold".
+  teamName(team) { return this.run?.teams?.[team] ?? ({ team_a: 'Team A', team_b: 'Team B' })[team] ?? 'Unknown team'; },
   teamColor: (team) => ({ team_a: '#e0a030', team_b: '#e8e8ea' })[team] ?? '#3a3f4a',
 
   async open(exportPath) {
@@ -62,15 +63,10 @@ const AiPlayers = {
     await window.api.saveAiPlayers(this.run.base, this.run.players);
     this.edits = {};
     $('aiPlayersStatus').textContent = 'Saved. Updating the plays…';
-    if (AI.dir) {
-      const res = await window.api.refilterAi(AI.dir, this.run.base);
-      if (!res.ok) $('aiPlayersStatus').textContent = `Saved, but updating the plays failed: ${res.error}`;
-    }
+    const res = await refreshAiPlays();
     this.run = await window.api.loadAiRun(this.run.exportPath);
-    AI.importRun(this.run, Teams.get(gameTeamId));
-    renderTags();
-    save();
-    if (!$('aiPlayersStatus').textContent.includes('failed')) $('aiPlayersStatus').textContent = `Saved ${ids.length} player${ids.length === 1 ? '' : 's'}.`;
+    $('aiPlayersStatus').textContent = res.ok ? `Saved ${ids.length} player${ids.length === 1 ? '' : 's'}.`
+      : `Saved, but updating the plays failed: ${res.error}`;
     this.render();
   },
 

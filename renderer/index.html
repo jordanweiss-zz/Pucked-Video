@@ -12,6 +12,7 @@
     <label>Sport <select id="sport"></select></label>
     <button id="teamsBtn">Teams &amp; rosters</button>
     <button id="aiBtn">Hockey AI</button>
+    <button id="aiJobBadge" class="job-badge" hidden title="Show Hockey AI's progress"></button>
     <button id="open">Open video…</button>
     <form id="ytForm" class="yt-form">
       <input id="ytUrl" type="url" placeholder="or paste a YouTube link" required>
@@ -23,6 +24,7 @@
     <section class="player">
       <div class="stage">
         <video id="video" preload="metadata"></video>
+        <svg id="rinkMarks" class="rink-marks" hidden></svg>
         <div id="yt" class="yt" hidden></div>
         <p id="placeholder">Open an MP4 to start reviewing.</p>
       </div>
@@ -49,19 +51,33 @@
         <span class="muted" id="playerHint"></span>
       </div>
     </section>
-    <aside>
+    <aside id="tagsPanel">
       <div class="aside-head">
         <h2>Tags <span id="tagCount" class="muted"></span></h2>
         <button id="undo" title="Undo the last tag you added (U)">Undo</button>
         <button id="clearTags" title="Remove every tag in this game">Clear</button>
       </div>
       <div class="ai-bar">
+        <button id="aiAnalyze" title="Have Hockey AI find the plays in this game (runs overnight)">Analyze game</button>
         <button id="aiImport" title="Load the plays Hockey AI found in this game">Import AI plays</button>
         <button id="aiPlayers" title="Name the players Hockey AI tracked in this game" hidden>AI players</button>
         <label class="muted"><input type="checkbox" id="showAi" checked> Show suggestions</label>
         <span id="aiCount" class="muted"></span>
       </div>
       <ol id="tagList"></ol>
+    </aside>
+    <aside id="rinkPanel" class="rink-panel" hidden>
+      <div class="aside-head"><h2>Rink setup</h2><button id="rinkDone">Done</button></div>
+      <ol class="rink-how muted">
+        <li>Pause on a frame where you can see rink markings.</li>
+        <li>Click a marking on the rink below.</li>
+        <li>Click the same spot in the video.</li>
+      </ol>
+      <svg id="rinkMap" class="rink-map" viewBox="-4 -4 208 98"></svg>
+      <p id="rinkPicking" class="muted"></p>
+      <ul id="rinkNeeds" class="rink-needs"></ul>
+      <h3>Points you clicked</h3>
+      <ul id="rinkPicks" class="rink-picks"></ul>
     </aside>
   </main>
   <dialog id="teamsDialog" class="teams-dialog">
@@ -113,10 +129,42 @@
     <div id="aiPlayerGrid" class="ai-player-grid"></div>
     <p class="row-form"><button id="aiPlayersSave">Save names</button> <span id="aiPlayersStatus" class="muted"></span></p>
   </dialog>
+  <dialog id="analyzeDialog" class="analyze-dialog">
+    <div class="dialog-head">
+      <h2>Analyze this game</h2>
+      <form method="dialog"><button>Close</button></form>
+    </div>
+    <p id="anIntro" class="muted"></p>
+    <ul id="anNeeds" class="an-needs"></ul>
+    <ol id="anSteps" class="an-steps"></ol>
+    <div class="an-bar"><div id="anBar"></div></div>
+    <p class="row-form"><span id="anStatus"></span></p>
+    <p id="anError" class="an-error" hidden></p>
+    <p class="row-form">
+      <button id="anStart">Start analysis</button>
+      <button id="anCancel" hidden>Cancel</button>
+      <button id="anRink">Set up rink…</button>
+      <button id="anDetails">Details</button>
+    </p>
+    <pre id="anLog" class="an-log" hidden></pre>
+    <section id="anCheck" hidden>
+      <h3>Does the rink line up?</h3>
+      <p class="muted">The lines should sit on the boards, blue lines and goal lines. If they miss, add more points in Rink setup and start again.</p>
+      <div id="anOverlays" class="an-overlays"></div>
+    </section>
+    <section id="anReport" hidden>
+      <h3>Post-game report</h3>
+      <p class="row-form"><input id="repTitle" placeholder="Title, e.g. Bulldogs vs Flyers"></p>
+      <p class="row-form"><input id="repTeamA" placeholder="Team A name"> <input id="repTeamB" placeholder="Team B name"></p>
+      <p class="row-form"><button id="repMake">Make report</button> <button id="repOpen" hidden>Open last report</button></p>
+    </section>
+  </dialog>
   <script src="youtube.js"></script>
   <script src="teams.js"></script>
   <script src="ai.js"></script>
   <script src="players.js"></script>
+  <script src="rink.js"></script>
+  <script src="analyze.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

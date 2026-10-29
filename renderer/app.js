@@ -30,6 +30,8 @@ async function init() {
   await AI.load();
   AI.wire();
   AiPlayers.wire();
+  Rink.wire();
+  Analyze.wire();
   await Teams.load();
   Teams.onChange = () => { renderTeamSelect(); renderPlayers(); renderTags(); };
   Teams.wire();
@@ -55,6 +57,7 @@ async function openVideo() {
   await loadSavedTags();
   if (!xbotgoImported) await importXbotgoMarks(file.path);
   renderTags();
+  await Analyze.gameOpened();
 }
 
 async function openYouTube(e) {
@@ -181,6 +184,24 @@ function clearTags() {
   save();
 }
 
+// Bring a Hockey_AI run's plays into this game as suggestions.
+function importAiRun(run) {
+  const result = AI.importRun(run, Teams.get(gameTeamId));
+  aiRunPath = run.exportPath;
+  $('aiPlayers').hidden = false;
+  renderTags();
+  save();
+  return result;
+}
+
+// Re-pick this game's AI plays after a settings change or a player fix. No graphics card needed; takes seconds.
+async function refreshAiPlays() {
+  const run = await window.api.loadAiRun(aiRunPath);
+  const res = await window.api.refilterAi(AI.dir, run.base, run.data.start_offset ?? 0);
+  if (res.ok) importAiRun(await window.api.loadAiRun(aiRunPath));
+  return res;
+}
+
 function save() {
   if (current) window.api.saveTags(current.key, { sport: sport.id, teamId: gameTeamId, xbotgoImported, aiRun: aiRunPath, tags });
 }
@@ -288,11 +309,7 @@ $('aiImport').onclick = async () => {
     return alert(err.message);
   }
   if (!run) return;
-  const { added: n, toReview } = AI.importRun(run, Teams.get(gameTeamId));
-  aiRunPath = run.exportPath;
-  $('aiPlayers').hidden = false;
-  renderTags();
-  save();
+  const { added: n, toReview } = importAiRun(run);
   const plays = (k) => `${k} play${k === 1 ? '' : 's'}`;
   alert(n ? `Added ${plays(n)} for you to review. Click ✓ to keep a play or ✗ to drop it.`
     : toReview ? `No new plays. ${plays(toReview)} still to review.` : 'No new plays in that file.');

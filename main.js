@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const { pathToFileURL } = require('url');
 const { execFile } = require('child_process');
+const hockeyAi = require('./hockey-ai');
 
 // ffmpeg-static ships inside the asar archive; the binary has to be read from the unpacked copy.
 const ffmpegPath = require('ffmpeg-static').replace('app.asar', 'app.asar.unpacked');
@@ -98,61 +99,6 @@ ipcMain.handle('folder:pick', async (_e, title) => {
   return canceled ? null : filePaths[0];
 });
 
-// Hockey_AI's play filters live in <Hockey_AI>/config/events.json; the app edits them so the user never has to.
-const aiEventsFile = (dir) => path.join(dir, 'config', 'events.json');
-ipcMain.handle('ai:events:load', (_e, dir) => readJson(aiEventsFile(dir), null));
-ipcMain.handle('ai:events:save', (_e, dir, data) => {
-  fs.writeFileSync(aiEventsFile(dir), JSON.stringify(data, null, 2));
-  return true;
-});
-
-// Pick a finished run's <base>_events_export.json and return it with its roster file, if there is one.
-ipcMain.handle('ai:import:pick', async (_e, defaultPath) => {
-  const { canceled, filePaths } = await dialog.showOpenDialog({
-    title: 'Choose the AI results for this game',
-    defaultPath,
-    properties: ['openFile'],
-    filters: [{ name: 'Hockey_AI results', extensions: ['json'] }],
-  });
-  if (canceled) return null;
-  return loadAiRun(filePaths[0]);
-});
-
-function loadAiRun(exportPath) {
-  const data = JSON.parse(fs.readFileSync(exportPath, 'utf8'));
-  if (data.schema_version !== 1 || !Array.isArray(data.events)) throw new Error('That file is not a Hockey_AI events export.');
-  const base = exportPath.replace(/_events_export\.json$/, '');
-  // Thumbnail paths in the players file are relative to the run's folder.
-  const thumbBase = `${pathToFileURL(path.dirname(exportPath)).href}/`;
-  return { exportPath, base, thumbBase, data, players: readJson(`${base}_players.json`, null) };
-}
-ipcMain.handle('ai:run:load', (_e, exportPath) => loadAiRun(exportPath));
-
-// The user's fixes to the run's players are saved with source "user", which later runs never overwrite.
-ipcMain.handle('ai:players:save', (_e, base, data) => {
-  fs.writeFileSync(`${base}_players.json`, JSON.stringify(data, null, 2));
-  return true;
-});
-
-// Re-filter a saved run so its plays pick up new names and settings. CPU only and quick, so it can't clash with a GPU job.
-ipcMain.handle('ai:refilter', (_e, dir, base) => runAiPython(dir, ['scripts/filter_events.py', base, '--write']));
-
-// Hockey_AI's own Python, from its virtual environment when it has one.
-function aiPython(dir) {
-  const venvs = ['.venv', 'venv'].flatMap((v) => [path.join(dir, v, 'Scripts', 'python.exe'), path.join(dir, v, 'bin', 'python')]);
-  return venvs.find((p) => fs.existsSync(p)) ?? (process.platform === 'win32' ? 'python' : 'python3');
-}
-
-function runAiPython(dir, args) {
-  return new Promise((resolve) => {
-    execFile(aiPython(dir), args, { cwd: dir, maxBuffer: 16 * 1024 * 1024, windowsHide: true }, (err, _stdout, stderr) => {
-      if (!err) return resolve({ ok: true });
-      const lines = String(stderr || err.message).trim().split('\n');
-      resolve({ ok: false, error: lines.slice(-3).join('\n') });
-    });
-  });
-}
-
 ipcMain.handle('ffmpeg:check', () => new Promise((resolve) => {
   execFile(ffmpegPath, ['-version'], (err, stdout) => {
     resolve(err ? { ok: false, error: err.message } : { ok: true, version: stdout.split('\n')[0] });
@@ -170,6 +116,8 @@ function allowYouTubeEmbeds() {
     },
   );
 }
+
+hockeyAi.register();
 
 app.whenReady().then(() => {
   allowYouTubeEmbeds();
