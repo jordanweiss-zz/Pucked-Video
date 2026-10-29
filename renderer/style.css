@@ -178,3 +178,10 @@ button:disabled { opacity: 0.5; cursor: default; }
 .follow-bar { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; background: #1f2a24; border: 1px solid #2f5a40; border-radius: 8px; padding: 6px 8px; font-size: 13px; }
 .follow-bar select { background: #2a2e37; color: var(--text); border: 1px solid #3a3f4a; border-radius: 6px; padding: 4px 6px; font: inherit; }
 .follow-bar #followInfo { flex: 1; }
+
+/* The selected play's clip on the timeline: drag either end to change where it starts or stops */
+.clip-band { position: absolute; top: 0; height: 18px; background: rgba(62, 99, 221, 0.25); border: 1px solid var(--accent); border-radius: 3px; pointer-events: none; box-sizing: border-box; }
+.clip-band i { position: absolute; top: -3px; bottom: -3px; width: 8px; background: var(--accent); border-radius: 3px; cursor: ew-resize; pointer-events: auto; touch-action: none; }
+.clip-band i[data-edge="start"] { left: -5px; }
+.clip-band i[data-edge="end"] { right: -5px; }
+#tagList .clip-row .clip-span { margin: 0 4px; font-variant-numeric: tabular-nums; }

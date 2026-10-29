@@ -41,6 +41,7 @@ function gameFiles(video) {
     players: `${base}_players.json`,
     pdf: `${base}_postgame.pdf`,
     html: `${base}_postgame.html`,
+    checkpoint: `${base}_checkpoint.json`, // left by a step that stopped partway, so it can resume
   };
 }
 
@@ -77,6 +78,14 @@ function calibOverlays(f) {
   });
 }
 
+// Where a step that crashed or was stopped will pick up again: { step, resume_from_s } or null.
+function checkpointOf(f) {
+  try {
+    const c = readJson(f.checkpoint, null);
+    return c?.schema_version === 1 && Number.isFinite(c.resume_from_s) ? { step: c.step, resumeFrom: c.resume_from_s } : null;
+  } catch { return null; }
+}
+
 function gameStatus(hai, video) {
   const f = gameFiles(video);
   const picks = readJson(f.picks, []);
@@ -93,6 +102,7 @@ function gameStatus(hai, video) {
     hasExport: fs.existsSync(f.exportFile),
     report: fs.existsSync(f.pdf) ? f.pdf : fs.existsSync(f.html) ? f.html : null,
     teams: readJson(f.report, null)?.summary?.teams ?? null,
+    checkpoint: checkpointOf(f),
     overlays: calibOverlays(f),
   };
 }
@@ -130,6 +140,8 @@ function runTool(hai, step, args) {
     readline.createInterface({ input: child.stdout }).on('line', (line) => {
       const p = line.match(/^PROGRESS\s+([\d.]+)/);
       if (p) { step.pct = Math.min(100, Number(p[1])); send(); return; }
+      const r = line.match(/^RESUMING\s+([\d.]+)/);
+      if (r) step.resumedFrom = Number(r[1]);
       const err = line.match(/^ERROR\s+(.*)/);
       if (err) step.error = err[1];
       log(line);
@@ -183,8 +195,10 @@ function friendlyError(msg) {
 }
 
 // Steps 1-4 of the contract. Weights are hours of work per hour of video, for the progress bar and estimate.
-function analyzeSteps(f, startOffset) {
+// Re-running a step's same command resumes from its checkpoint; `fresh` throws that away and starts over.
+function analyzeSteps(f, startOffset, fresh = false) {
   const off = String(startOffset);
+  const restart = fresh ? ['--fresh'] : [];
   return [
     {
       id: 'calibrate', label: 'Map the rink', weight: 1,
@@ -192,13 +206,13 @@ function analyzeSteps(f, startOffset) {
       // After the user edits picks, only the rink placement is re-fitted, which takes seconds.
       args: () => ['scripts/calibrate_xbotgo.py', '-i', f.video, '--track', f.track, '--start-offset', off,
         '--picks', f.picks, '--fit-rink-length', '--step', '5', '-o', f.camera, '--debug-dir', f.calibCheck,
-        ...(fs.existsSync(f.camera) ? ['--reuse', f.camera] : [])],
+        ...(fs.existsSync(f.camera) ? ['--reuse', f.camera] : []), ...restart],
     },
     {
       id: 'analyze', label: 'Find the plays (uses the graphics card)', weight: 4.5,
       skip: () => fs.existsSync(f.report) && mtime(f.report) > mtime(f.camera),
       args: () => ['main.py', '-i', f.video, '-o', f.annotated, '--gpu', '--xbotgo-track', f.track, '--start-offset', off,
-        '--camera-calib', f.camera, '--event-config', f.events],
+        '--camera-calib', f.camera, '--event-config', f.events, ...restart],
     },
     {
       id: 'players', label: 'Read jersey numbers', weight: 0.75,
@@ -281,14 +295,15 @@ function register() {
     return true;
   });
 
-  ipcMain.handle('ai:analyze', (_e, hai, video) => {
+  ipcMain.handle('ai:analyze', (_e, hai, video, opts = {}) => {
     const f = gameFiles(video);
     const problem = checkReady(hai, f)
       ?? (!fs.existsSync(f.track) ? `There's no XBotGo camera log next to this video (.data\\${path.basename(f.track)}).` : null)
       ?? (!fs.existsSync(f.picks) && !fs.existsSync(f.camera) ? 'Set up the rink first.' : null);
     if (problem) return { ok: false, error: problem };
     writeGameEvents(hai, f);
-    runJob(hai, 'analyze', video, analyzeSteps(f, 0));
+    if (opts.fresh) fs.rmSync(f.checkpoint, { force: true });
+    runJob(hai, 'analyze', video, analyzeSteps(f, 0, Boolean(opts.fresh)));
     return { ok: true };
   });
 
@@ -303,6 +318,8 @@ function register() {
     if (opts.teamA) args.push('--team-a', opts.teamA);
     if (opts.teamB) args.push('--team-b', opts.teamB);
     if (opts.title) args.push('--title', opts.title);
+    if (opts.focusTeam) args.push('--focus-team', opts.focusTeam);
+    if (opts.players?.length) args.push('--players', opts.players.join(','));
     const steps = [{ id: 'report', label: 'Make the post-game report', weight: 1, args: () => args }];
     runJob(hai, 'report', video, steps, () => {
       const out = fs.existsSync(f.pdf) ? f.pdf : f.html;
@@ -322,7 +339,7 @@ function register() {
         buttons: ['Keep running', 'Quit and stop it'],
         defaultId: 0,
         message: 'Hockey AI is still analyzing a game.',
-        detail: 'Quitting stops it. Starting it again later picks up from the last finished step.',
+        detail: 'Quitting stops it. Starting it again later resumes where it stopped.',
       });
       if (choice === 0) e.preventDefault();
       else { job.state = 'cancelled'; killChild(); }

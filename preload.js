@@ -19,7 +19,7 @@ contextBridge.exposeInMainWorld('api', {
   refilterAi: (hai, base, startOffset) => ipcRenderer.invoke('ai:refilter', hai, base, startOffset),
   aiGame: (hai, video) => ipcRenderer.invoke('ai:game', hai, video),
   saveAiPicks: (video, picks) => ipcRenderer.invoke('ai:picks:save', video, picks),
-  analyzeGame: (hai, video) => ipcRenderer.invoke('ai:analyze', hai, video),
+  analyzeGame: (hai, video, opts) => ipcRenderer.invoke('ai:analyze', hai, video, opts),
   makeReport: (hai, video, opts) => ipcRenderer.invoke('ai:report', hai, video, opts),
   getAiJob: () => ipcRenderer.invoke('ai:job:get'),
   cancelAiJob: () => ipcRenderer.invoke('ai:job:cancel'),

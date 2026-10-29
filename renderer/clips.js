@@ -12,14 +12,40 @@ const Clips = {
 
   canSave: () => Boolean(current?.path),
 
-  // The clip controls under the tag you're working on.
+  // Longest a clip can reach either side of its tag, in seconds.
+  maxSide: 120,
+
+  // The clip controls under the tag you're working on. The clip's start and end can also be
+  // dragged on the timeline, or set from where the video is (I and O).
+  span(t) {
+    const w = this.window(t);
+    return `${fmt(w.start)} to ${fmt(w.end)} (${Math.round(w.end - w.start)} s)`;
+  },
+
   row(t, i) {
-    return `<div class="clip-row">Clip <input type="number" min="0" max="30" step="1" data-before="${i}" value="${t.before}" title="Seconds before the tag"> s before,`
-      + ` <input type="number" min="0" max="30" step="1" data-after="${i}" value="${t.after}" title="Seconds after the tag"> s after`
+    return `<div class="clip-row">Clip <input type="number" min="0" max="${this.maxSide}" step="1" data-before="${i}" value="${t.before}" title="Seconds before the tag"> s before,`
+      + ` <input type="number" min="0" max="${this.maxSide}" step="1" data-after="${i}" value="${t.after}" title="Seconds after the tag"> s after`
       + ` <button data-preview="${i}" title="Play this clip">▶</button>`
+      + `<span class="clip-span">${this.span(t)}</span>`
+      + ` <button data-in="${i}" title="Start the clip where the video is now (I)">Start here</button>`
+      + ` <button data-out="${i}" title="End the clip where the video is now (O)">End here</button>`
       + (this.canSave() ? ` <button data-save="${i}" title="Save this clip as an MP4">Save clip</button>`
         + ` <button data-save9="${i}" title="Save a vertical (9:16) copy for phones and social media">Save 9:16</button>`
         + ` <button data-frame="${i}" class="${Crop.tag === t ? 'on' : ''}" title="Choose which part of the picture the 9:16 copy shows">Frame 9:16</button>` : '') + '</div>';
+  },
+
+  // Move the clip's start or end to a time in the video, keeping the tag inside the clip.
+  setEdge(t, edge, time) {
+    if (edge === 'start') t.before = Math.round(Math.max(0, Math.min(this.maxSide, t.time - time)) * 10) / 10;
+    else t.after = Math.round(Math.max(0, Math.min(this.maxSide, time - t.time)) * 10) / 10;
+  },
+
+  setHere(edge) {
+    const t = focusTag;
+    if (!t) return;
+    this.setEdge(t, edge, media.currentTime);
+    renderTags();
+    save();
   },
 
   onRowClick(e) {
@@ -28,16 +54,66 @@ const Clips = {
     if (save !== undefined) this.saveTag(tags[Number(save)], false);
     if (save9 !== undefined) this.saveTag(tags[Number(save9)], true);
     if (frame !== undefined) { Crop.toggle(tags[Number(frame)]); renderTags(); }
+    if (e.target.dataset.in !== undefined) this.setHere('start');
+    if (e.target.dataset.out !== undefined) this.setHere('end');
   },
 
   onRowChange(e) {
     const { before, after } = e.target.dataset;
     const t = tags[Number(before ?? after)];
     if (!t) return;
-    const v = Math.max(0, Math.min(30, Number(e.target.value) || 0));
+    const v = Math.max(0, Math.min(this.maxSide, Number(e.target.value) || 0));
     if (before !== undefined) t.before = v; else t.after = v;
     e.target.value = v;
+    // Not a full re-render: the list is mid-change and the field may still have focus.
+    e.target.closest('.clip-row').querySelector('.clip-span').textContent = this.span(t);
+    this.renderBand();
     save();
+  },
+
+  // The selected tag's clip as a band on the timeline, with handles to drag its start and end.
+  renderBand() {
+    const band = $('clipBand');
+    const t = focusTag;
+    const d = media.duration;
+    if (!t || !d || !tags.includes(t) || !visible(t)) { band.hidden = true; return; }
+    const w = this.window(t);
+    band.hidden = false;
+    band.style.left = `${(w.start / d) * 100}%`;
+    band.style.width = `${((w.end - w.start) / d) * 100}%`;
+    band.title = `Clip ${fmt(w.start)} to ${fmt(w.end)}. Drag the ends to change it.`;
+  },
+
+  wireBand() {
+    const band = $('clipBand');
+    let drag = null;
+    const timeAt = (e) => {
+      const r = band.parentElement.getBoundingClientRect();
+      return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * media.duration;
+    };
+    band.addEventListener('pointerdown', (e) => {
+      const edge = e.target.dataset.edge;
+      if (!edge || !focusTag) return;
+      drag = { edge, t: focusTag };
+      media.pause();
+      stopClip();
+      band.setPointerCapture(e.pointerId);
+      e.preventDefault();
+      e.stopPropagation();
+    });
+    band.addEventListener('pointermove', (e) => {
+      if (!drag) return;
+      const time = timeAt(e);
+      this.setEdge(drag.t, drag.edge, time);
+      media.currentTime = drag.edge === 'start' ? drag.t.time - drag.t.before : drag.t.time + drag.t.after; // show the frame you're on
+      this.renderBand();
+    });
+    band.addEventListener('pointerup', () => {
+      if (!drag) return;
+      drag = null;
+      renderTags();
+      save();
+    });
   },
 
   // "VID_..._01_01" from the open video, for default file names next to it.
@@ -236,6 +312,7 @@ const Clips = {
       if (s.state !== 'running') this.saving = false;
       this.toast(s);
     });
+    this.wireBand();
     $('reelBtn').onclick = () => { $('reelLength').value = '0'; this.openReel(); };
     $('reelTypes').onchange = () => this.renderReel();
     $('reelPlayer').onchange = () => this.renderReel();

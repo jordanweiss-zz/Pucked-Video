@@ -245,6 +245,7 @@ function renderMarkers() {
       + Draw.markers(d)
     : '';
   AutoCut.render();
+  Clips.renderBand();
   if (Follow.who) { Follow.parts = Follow.stretches(Follow.who); Follow.render(); }
 }
 
@@ -397,6 +398,8 @@ document.addEventListener('keydown', (e) => {
   if (e.key === '+' || e.key === '=') return nudgeSpeed(1);
   if (e.key.toLowerCase() === 'u') return Draw.active ? Draw.undo() : undo();
   if (e.key.toLowerCase() === 'd') return $('drawBtn').click();
+  if (e.key.toLowerCase() === 'i' && focusTag) return Clips.setHere('start');
+  if (e.key.toLowerCase() === 'o' && focusTag) return Clips.setHere('end');
   if (e.key === 'Escape' && Draw.active) return Draw.close();
   if (e.key === ' ') { e.preventDefault(); $('play').click(); return; }
   if (e.key === 'ArrowLeft') return $('back').click();

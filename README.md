@@ -23,7 +23,7 @@ npm start
 - **Draw** (D) on a paused frame with arrows, lines, circles and a pen, then **Save picture** to share it.
 
 ### Clips and reels
-- Change how much of each play a tag covers, then **Save clip** as an MP4.
+- Click any play or AI event to watch it. Its clip shows as a band on the timeline: drag either end, use **Start here** / **End here** (I and O), or type up to 2 minutes either side, then **Save clip** as an MP4.
 - **Make reel** joins the plays and player you pick, with the play name shown at the start of each clip.
 - **Save 9:16** and vertical reels for phones and social media. **Frame 9:16** lets you drag to choose which part of the picture to keep.
 - **Team logo** in a corner of clips and reels, with size and see-through settings.
@@ -35,8 +35,8 @@ npm start
 
 ### Hockey AI (optional, runs on your own computer)
 - Set it up in **Hockey AI**, then use **Analyze game** on a game. You click a few rink markings once per game in **Set up rink**.
-- The analysis runs for a few hours. The plays it finds show up as suggestions to keep (✓) or drop (✗).
-- **AI players** fixes the jersey numbers it read, and the **post-game report** makes a printable PDF summary.
+- The analysis runs for a few hours. If it crashes or is stopped, **Resume** carries on from where it stopped (or **Start over**). The plays it finds show up as suggestions to keep (✓) or drop (✗).
+- **AI players** fixes the jersey numbers it read, and the **post-game report** makes a printable PDF summary. Choose which team it's about and which players get their own pages; the territory and event map, game flow and plays-by-type pages always show both teams.
 - The app runs [Hockey_AI](https://github.com/OsikDerek/Hockey_AI) as described in its `docs/app_contract.md`. Follow a player uses its `<run>_presence.json`.
 
 Every setting is in the app's screens. There are no config files to edit.
@@ -67,6 +67,7 @@ These were built and tested in a headless test setup but haven't been tried on t
 | U | Undo the last tag you added (or the last mark while drawing) |
 | D | Draw on the video (Esc to stop) |
 | [ / ] | Previous/next stretch while following a player |
+| I / O | Start/end the selected play's clip where the video is |
 | - / + | Slower/faster |
 
 ## Adding a sport
