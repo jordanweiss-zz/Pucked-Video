@@ -53,6 +53,7 @@
           <div id="cutStrip" class="cut-strip"></div>
           <div id="followStrip" class="follow-strip"></div>
           <div id="markers" class="markers"></div>
+          <div id="clipBand" class="clip-band" hidden><i data-edge="start"></i><i data-edge="end"></i></div>
         </div>
         <button id="drawBtn" title="Draw on the video (D)">✎ Draw</button>
         <select id="speed" title="Playback speed">
@@ -251,6 +252,7 @@
     <p id="anError" class="an-error" hidden></p>
     <p class="row-form">
       <button id="anStart">Start analysis</button>
+      <button id="anFresh" hidden title="Throw away the saved progress and start this game from the beginning">Start over</button>
       <button id="anCancel" hidden>Cancel</button>
       <button id="anRink">Set up rink…</button>
       <button id="anDetails">Details</button>
@@ -265,6 +267,11 @@
       <h3>Post-game report</h3>
       <p class="row-form"><input id="repTitle" placeholder="Title, e.g. Bulldogs vs Flyers"></p>
       <p class="row-form"><input id="repTeamA" placeholder="Team A name"> <input id="repTeamB" placeholder="Team B name"></p>
+      <p class="row-form"><label>Report on <select id="repFocus"><option value="both">Both teams</option></select></label></p>
+      <p class="muted">The territory and event map, game flow and plays by type always show both teams.</p>
+      <h4>Player pages</h4>
+      <div id="repPlayers" class="reel-types"></div>
+      <p id="repPlayersNote" class="muted"></p>
       <p class="row-form"><button id="repMake">Make report</button> <button id="repOpen" hidden>Open last report</button></p>
     </section>
   </dialog>

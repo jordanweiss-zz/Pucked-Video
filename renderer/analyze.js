@@ -70,22 +70,27 @@ const Analyze = {
     ];
     const icon = { pending: '○', running: '✱', done: '✓', skipped: '✓', failed: '✗', cancelled: '–' };
     $('anSteps').innerHTML = steps.map((s) => `<li class="${s.status}">${icon[s.status] ?? '○'} ${s.label}`
-      + (s.status === 'running' ? ` <span class="muted">${Math.floor(s.pct ?? 0)}%</span>` : '')
+      + (s.status === 'running' ? ` <span class="muted">${Math.floor(s.pct ?? 0)}%${s.resumedFrom ? `, carried on from ${fmt(s.resumedFrom)}` : ''}</span>` : '')
       + (s.status === 'skipped' ? ' <span class="muted">already done</span>' : '') + '</li>').join('');
 
     const pct = job ? (job.state === 'done' ? 100 : this.overall(job)) : 0;
     $('anBar').style.width = `${pct}%`;
     const left = running ? this.timeLeft(job) : null;
-    $('anStatus').textContent = !job ? (st.upToDate ? 'This game is analyzed. Change the rink points to run it again.' : '')
+    const cp = running ? null : st.checkpoint;
+    const where = cp ? `${cp.step === 'calibrate' ? 'Mapping the rink' : 'Finding the plays'} stopped at ${fmt(cp.resumeFrom)} of the game` : '';
+    $('anStatus').textContent = cp && job?.state !== 'done' ? `${where}. Resume carries on from there, so nothing done so far is lost.`
+      : !job ? (st.upToDate ? 'This game is analyzed. Change the rink points to run it again.' : '')
       : running ? `${Math.floor(pct)}% done${left ? ` · about ${this.dur(left)} left` : ''}`
         : job.state === 'done' ? (job.kind === 'report' ? 'The report is ready.' : `Done in ${this.dur((job.finishedAt - job.startedAt) / 1000)}. The plays are in your tag list to review.`)
-          : job.state === 'cancelled' ? 'Stopped. Start again to pick up from the last finished step.' : '';
+          : job.state === 'cancelled' ? 'Stopped. Start again to carry on where it stopped.' : '';
     $('anError').hidden = job?.state !== 'failed';
     $('anError').textContent = job?.error ? `${job.error}${job.fixable ? '' : ' (Details has more.)'}` : '';
 
-    $('anStart').hidden = running || (st.upToDate && !['failed', 'cancelled'].includes(job?.state));
+    $('anStart').hidden = running || (st.upToDate && !cp && !['failed', 'cancelled'].includes(job?.state));
     $('anStart').disabled = Boolean(otherJob) || !(AI.dir && st.python && st.hasTrack && rinkOk && hdOk);
-    $('anStart').textContent = job?.state === 'cancelled' || job?.state === 'failed' ? 'Start again' : 'Start analysis';
+    $('anStart').textContent = cp ? `Resume from ${fmt(cp.resumeFrom)}` : job?.state === 'cancelled' || job?.state === 'failed' ? 'Start again' : 'Start analysis';
+    $('anFresh').hidden = !cp || running;
+    $('anFresh').disabled = $('anStart').disabled;
     $('anCancel').hidden = !running;
     $('anRink').disabled = running;
     $('anLog').textContent = (job?.log ?? []).join('\n');
@@ -96,8 +101,34 @@ const Analyze = {
     $('anReport').hidden = !st.analyzed;
     if (!$('repTeamA').value && st.teams?.team_a) $('repTeamA').value = st.teams.team_a;
     if (!$('repTeamB').value && st.teams?.team_b) $('repTeamB').value = st.teams.team_b;
+    this.renderReportChoices(st);
     $('repMake').disabled = running || Boolean(otherJob);
     $('repOpen').hidden = !st.report;
+  },
+
+  // Report choices: which team it's about, and which players get their own pages.
+  async renderReportChoices(st) {
+    const names = { team_a: $('repTeamA').value.trim() || st.teams?.team_a || 'Team A', team_b: $('repTeamB').value.trim() || st.teams?.team_b || 'Team B' };
+    const focus = $('repFocus').value || 'both';
+    $('repFocus').innerHTML = `<option value="both">Both teams</option><option value="team_a">${esc(names.team_a)}</option><option value="team_b">${esc(names.team_b)}</option>`;
+    $('repFocus').value = focus;
+    if (this.repRun !== st.files.exportFile) {
+      this.repRun = st.files.exportFile;
+      const run = st.hasExport ? await window.api.loadAiRun(st.files.exportFile).catch(() => null) : null;
+      this.repPlayers = (run?.players?.players ?? []).filter((p) => p.number)
+        .sort((a, b) => a.team.localeCompare(b.team) || Number(a.number) - Number(b.number));
+    }
+    const shown = this.repPlayers.filter((p) => focus === 'both' || p.team === focus);
+    const picked = new Set([...$('repPlayers').querySelectorAll('input:checked')].map((c) => c.value));
+    const team = Teams.get(gameTeamId);
+    const who = (p) => {
+      const r = team?.players.find((x) => String(x.number) === String(p.number));
+      return `${r ? Teams.label(r) : `#${p.number}`} <span class="muted">${esc(names[p.team] ?? '')}</span>`;
+    };
+    $('repPlayers').innerHTML = shown.length
+      ? shown.map((p) => `<label><input type="checkbox" value="${esc(p.player_id)}" ${picked.has(p.player_id) ? 'checked' : ''}> ${who(p)}</label>`).join('')
+      : '<span class="muted">No named players yet. Name them under AI players.</span>';
+    $('repPlayersNote').textContent = picked.size ? `Player pages for the ${picked.size} you ticked.` : 'Nobody ticked, so every player gets a page.';
   },
 
   renderBadge() {
@@ -106,8 +137,9 @@ const Analyze = {
     if (j?.state === 'running') $('aiJobBadge').textContent = `Hockey AI ${Math.floor(this.overall(j))}%`;
   },
 
-  async start() {
-    const res = await window.api.analyzeGame(AI.dir, current.path);
+  async start(fresh = false) {
+    if (fresh && !confirm('Throw away what was already done and analyze the whole game again from the start?')) return;
+    const res = await window.api.analyzeGame(AI.dir, current.path, { fresh });
     if (!res.ok) return alert(res.error);
     this.job = await window.api.getAiJob();
     this.render();
@@ -149,8 +181,11 @@ const Analyze = {
     $('aiAnalyze').onclick = () => this.open();
     $('aiJobBadge').onclick = () => this.open();
     $('anStart').onclick = () => this.start();
+    $('anFresh').onclick = () => this.start(true);
+    $('repFocus').onchange = () => this.renderReportChoices(this.status);
+    $('repPlayers').onchange = () => this.renderReportChoices(this.status);
     $('anCancel').onclick = async () => {
-      if (confirm('Stop the analysis? Starting it again later picks up from the last finished step.')) await window.api.cancelAiJob();
+      if (confirm('Stop the analysis? Starting it again later carries on where it stopped.')) await window.api.cancelAiJob();
     };
     const openRink = () => {
       $('analyzeDialog').close();
@@ -166,6 +201,8 @@ const Analyze = {
     $('repMake').onclick = async () => {
       const res = await window.api.makeReport(AI.dir, current.path, {
         title: $('repTitle').value.trim(), teamA: $('repTeamA').value.trim(), teamB: $('repTeamB').value.trim(),
+        focusTeam: $('repFocus').value || 'both',
+        players: [...$('repPlayers').querySelectorAll('input:checked')].map((c) => c.value),
       });
       if (!res.ok) return alert(res.error);
       this.job = await window.api.getAiJob();
