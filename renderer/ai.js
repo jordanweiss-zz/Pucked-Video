@@ -46,7 +46,8 @@ const AI = {
     $('aiSave').hidden = true;
     if (!this.dir) { $('aiStatus').textContent = 'Choose where Hockey AI is installed to see which plays it finds.'; return; }
     try {
-      this.config = await window.api.loadAiEvents(this.dir);
+      // Your saved choices, or Hockey_AI's defaults the first time.
+      this.config = this.settings.playSettings ? structuredClone(this.settings.playSettings) : await window.api.loadAiEvents(this.dir);
     } catch (err) {
       $('aiStatus').textContent = `Couldn't read Hockey_AI's settings: ${err.message}`;
       return;
@@ -78,7 +79,8 @@ const AI = {
       c.cooldown_sec[t] = Number(row.querySelector('[data-k=cool]').value) || 0;
     }
     c.cooldown_sec.global = Number($('aiGap').value) || 0;
-    await window.api.saveAiEvents(this.dir, c);
+    this.settings.playSettings = c;
+    await window.api.saveSettings(this.settings);
     if (!aiRunPath) { $('aiStatus').textContent = 'Saved. New settings apply to the next analysis.'; return; }
     // The open game's plays can be re-picked right away, without the graphics card.
     $('aiStatus').textContent = 'Saved. Updating this game\'s plays…';

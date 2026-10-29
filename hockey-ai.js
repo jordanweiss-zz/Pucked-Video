@@ -62,9 +62,24 @@ function loadAiRun(exportPath) {
 }
 
 // Each game gets its own copy of the user's play settings, so a run always says which settings it used.
+// The user's play settings live in the app's own settings (Hockey AI settings screen). Hockey_AI's
+// config/events.json is only the starting point, and the app never writes to it.
+const appSettingsFile = () => path.join(app.getPath('userData'), 'settings.json');
+function playSettings(hai) {
+  try {
+    const mine = readJson(appSettingsFile(), {}).playSettings;
+    if (mine) return mine;
+  } catch { /* fall back to Hockey_AI's defaults */ }
+  return readJson(aiEventsFile(hai), null);
+}
+
+function writeEvents(hai, file) {
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, JSON.stringify(playSettings(hai), null, 2));
+}
+
 function writeGameEvents(hai, f) {
-  fs.mkdirSync(f.out, { recursive: true });
-  fs.copyFileSync(aiEventsFile(hai), f.events);
+  writeEvents(hai, f.events);
 }
 
 function calibOverlays(f) {
@@ -237,11 +252,8 @@ function checkReady(hai, f) {
 }
 
 function register() {
+  // Hockey_AI's default play settings, to start from before the user has saved their own.
   ipcMain.handle('ai:events:load', (_e, hai) => readJson(aiEventsFile(hai), null));
-  ipcMain.handle('ai:events:save', (_e, hai, data) => {
-    fs.writeFileSync(aiEventsFile(hai), JSON.stringify(data, null, 2));
-    return true;
-  });
 
   // Pick a finished run's <base>_events_export.json and return it with its roster file, if there is one.
   ipcMain.handle('ai:import:pick', async (_e, defaultPath) => {
@@ -267,7 +279,7 @@ function register() {
     const py = hai && aiPython(hai);
     if (!py) return resolve({ ok: false, error: 'Choose your Hockey_AI folder in Hockey AI settings first.' });
     const events = `${base}_events.json`;
-    fs.copyFileSync(aiEventsFile(hai), events);
+    writeEvents(hai, events);
     const args = ['-u', 'scripts/filter_events.py', base, '--start-offset', String(startOffset ?? 0), '--config', events, '--write'];
     execFile(py, args, { cwd: hai, maxBuffer: 16 * 1024 * 1024, windowsHide: true }, (err, stdout, stderr) => {
       if (!err) return resolve({ ok: true });
