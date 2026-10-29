@@ -26,6 +26,8 @@ async function init() {
   $('sport').innerHTML = sports.map((s) => `<option value="${s.id}">${s.name}</option>`).join('');
   $('sport').value = 'hockey';
   setSport('hockey');
+  await AI.load();
+  AI.wire();
   await Teams.load();
   Teams.onChange = () => { renderTeamSelect(); renderPlayers(); renderTags(); };
   Teams.wire();
@@ -181,13 +183,21 @@ function save() {
 
 const esc = (str) => String(str).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
+// Rejected AI plays stay in the file (so a re-import skips them) but are never shown.
+const visible = (t) => t.status !== 'rejected' && (t.status !== 'suggested' || $('showAi').checked);
+
 function renderTags() {
-  $('tagCount').textContent = tags.length ? `(${tags.length})` : '';
+  const shown = tags.filter(visible);
+  const suggested = tags.filter((t) => t.status === 'suggested').length;
+  $('tagCount').textContent = shown.length ? `(${shown.length})` : '';
+  $('aiCount').textContent = suggested ? `${suggested} to review` : '';
   $('tagList').innerHTML = tags
-    .map((t, i) => `<li data-i="${i}" style="--c:${t.color}" class="${t === focusTag ? 'focus' : ''}"><span class="t">${fmt(t.time)}</span>${t.label}`
+    .map((t, i) => (!visible(t) ? '' : `<li data-i="${i}" style="--c:${t.color}" class="${t === focusTag ? 'focus' : ''} ${t.status === 'suggested' ? 'suggested' : ''}"><span class="t">${fmt(t.time)}</span>${t.label}`
       + (t.player ? ` <span class="who">${esc(Teams.label(t.player))}</span>` : '')
-      + `<button class="x" data-del="${i}">×</button>`
-      + `<input class="note" data-note="${i}" placeholder="Add a note…" value="${esc(t.note ?? '')}"></li>`)
+      + (t.status === 'suggested'
+        ? ` <span class="conf">AI ${Math.round((t.confidence ?? 0) * 100)}%</span><button class="x ok" data-ok="${i}" title="Keep this play">✓</button><button class="no" data-no="${i}" title="Not a real play">✗</button>`
+        : `<button class="x" data-del="${i}">×</button>`)
+      + `<input class="note" data-note="${i}" placeholder="Add a note…" value="${esc(t.note ?? '')}"></li>`))
     .join('');
   renderMarkers();
 }
@@ -195,7 +205,7 @@ function renderTags() {
 function renderMarkers() {
   const d = media.duration;
   $('markers').innerHTML = d
-    ? tags.map((t, i) => `<i data-i="${i}" style="left:${(t.time / d) * 100}%;--c:${t.color}" title="${fmt(t.time)} ${t.label}"></i>`).join('')
+    ? tags.map((t, i) => (visible(t) ? `<i data-i="${i}" class="${t.status === 'suggested' ? 'suggested' : ''}" style="left:${(t.time / d) * 100}%;--c:${t.color}" title="${fmt(t.time)} ${t.label}"></i>` : '')).join('')
     : '';
 }
 
@@ -244,6 +254,14 @@ $('tagList').onclick = (e) => {
     renderTags(); renderPlayers(); save();
     return;
   }
+  if (e.target.dataset.ok !== undefined) { tags[Number(e.target.dataset.ok)].status = 'accepted'; renderTags(); save(); return; }
+  if (e.target.dataset.no !== undefined) {
+    const t = tags[Number(e.target.dataset.no)];
+    t.status = 'rejected';
+    if (focusTag === t) focusTag = null;
+    renderTags(); renderPlayers(); save();
+    return;
+  }
   if (e.target.dataset.note !== undefined) return;
   const li = e.target.closest('li');
   if (li) playClip(Number(li.dataset.i));
@@ -256,6 +274,23 @@ $('tagList').onchange = (e) => {
 $('playerButtons').onclick = (e) => { const b = e.target.closest('button'); if (b) assignPlayer(b.dataset.player); };
 $('gameTeam').onchange = (e) => { gameTeamId = e.target.value || null; renderPlayers(); save(); };
 $('undo').onclick = undo;
+$('showAi').onchange = renderTags;
+$('aiImport').onclick = async () => {
+  if (!current) return alert('Open a game first.');
+  let run;
+  try {
+    run = await window.api.pickAiResults(AI.dir ? `${AI.dir}/output` : undefined);
+  } catch (err) {
+    return alert(err.message);
+  }
+  if (!run) return;
+  const { added: n, toReview } = AI.importRun(run, Teams.get(gameTeamId));
+  renderTags();
+  save();
+  const plays = (k) => `${k} play${k === 1 ? '' : 's'}`;
+  alert(n ? `Added ${plays(n)} for you to review. Click ✓ to keep a play or ✗ to drop it.`
+    : toReview ? `No new plays. ${plays(toReview)} still to review.` : 'No new plays in that file.');
+};
 $('clearTags').onclick = clearTags;
 $('markers').onclick = (e) => { if (e.target.dataset.i !== undefined) playClip(Number(e.target.dataset.i)); };
 
@@ -308,7 +343,7 @@ function typeDigit(d) {
 }
 
 document.addEventListener('keydown', (e) => {
-  if ($('teamsDialog').open) return;
+  if ($('teamsDialog').open || $('aiDialog').open) return;
   if (e.target.matches('input:not([type=range]), select')) return;
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (/^[0-9]$/.test(e.key)) return typeDigit(e.key);

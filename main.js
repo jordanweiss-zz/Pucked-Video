@@ -83,6 +83,48 @@ ipcMain.handle('teams:save', (_e, data) => {
   return true;
 });
 
+// App settings (e.g. where Hockey_AI lives) are kept in settings.json in the app's data folder.
+const settingsFile = () => path.join(app.getPath('userData'), 'settings.json');
+const readJson = (file, fallback) => (fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : fallback);
+
+ipcMain.handle('settings:load', () => readJson(settingsFile(), {}));
+ipcMain.handle('settings:save', (_e, data) => {
+  fs.writeFileSync(settingsFile(), JSON.stringify(data, null, 2));
+  return true;
+});
+
+ipcMain.handle('folder:pick', async (_e, title) => {
+  const { canceled, filePaths } = await dialog.showOpenDialog({ title, properties: ['openDirectory'] });
+  return canceled ? null : filePaths[0];
+});
+
+// Hockey_AI's play filters live in <Hockey_AI>/config/events.json; the app edits them so the user never has to.
+const aiEventsFile = (dir) => path.join(dir, 'config', 'events.json');
+ipcMain.handle('ai:events:load', (_e, dir) => readJson(aiEventsFile(dir), null));
+ipcMain.handle('ai:events:save', (_e, dir, data) => {
+  fs.writeFileSync(aiEventsFile(dir), JSON.stringify(data, null, 2));
+  return true;
+});
+
+// Pick a finished run's <base>_events_export.json and return it with its roster file, if there is one.
+ipcMain.handle('ai:import:pick', async (_e, defaultPath) => {
+  const { canceled, filePaths } = await dialog.showOpenDialog({
+    title: 'Choose the AI results for this game',
+    defaultPath,
+    properties: ['openFile'],
+    filters: [{ name: 'Hockey_AI results', extensions: ['json'] }],
+  });
+  if (canceled) return null;
+  return loadAiRun(filePaths[0]);
+});
+
+function loadAiRun(exportPath) {
+  const data = JSON.parse(fs.readFileSync(exportPath, 'utf8'));
+  if (data.schema_version !== 1 || !Array.isArray(data.events)) throw new Error('That file is not a Hockey_AI events export.');
+  const base = exportPath.replace(/_events_export\.json$/, '');
+  return { exportPath, base, data, players: readJson(`${base}_players.json`, null) };
+}
+
 ipcMain.handle('ffmpeg:check', () => new Promise((resolve) => {
   execFile(ffmpegPath, ['-version'], (err, stdout) => {
     resolve(err ? { ok: false, error: err.message } : { ok: true, version: stdout.split('\n')[0] });

@@ -11,6 +11,7 @@
     <h1>Pucked Video</h1>
     <label>Sport <select id="sport"></select></label>
     <button id="teamsBtn">Teams &amp; rosters</button>
+    <button id="aiBtn">Hockey AI</button>
     <button id="open">Open video…</button>
     <form id="ytForm" class="yt-form">
       <input id="ytUrl" type="url" placeholder="or paste a YouTube link" required>
@@ -54,6 +55,11 @@
         <button id="undo" title="Undo the last tag you added (U)">Undo</button>
         <button id="clearTags" title="Remove every tag in this game">Clear</button>
       </div>
+      <div class="ai-bar">
+        <button id="aiImport" title="Load the plays Hockey AI found in this game">Import AI plays</button>
+        <label class="muted"><input type="checkbox" id="showAi" checked> Show suggestions</label>
+        <span id="aiCount" class="muted"></span>
+      </div>
       <ol id="tagList"></ol>
     </aside>
   </main>
@@ -82,8 +88,23 @@
       </section>
     </div>
   </dialog>
+  <dialog id="aiDialog" class="ai-dialog">
+    <div class="dialog-head">
+      <h2>Hockey AI settings</h2>
+      <form method="dialog"><button>Done</button></form>
+    </div>
+    <p class="row-form"><span class="muted">Hockey_AI folder:</span> <span id="aiDir"></span> <button id="aiPickDir">Change…</button></p>
+    <h3>Which plays to find</h3>
+    <table class="ai-types">
+      <thead><tr><th>Play</th><th>Minimum confidence</th><th>Gap between same plays</th></tr></thead>
+      <tbody id="aiTypes"></tbody>
+    </table>
+    <p class="row-form"><label>Gap between any two plays <input id="aiGap" type="number" min="0" max="120" step="1"> s</label></p>
+    <p class="row-form"><button id="aiSave">Save settings</button> <span id="aiStatus" class="muted"></span></p>
+  </dialog>
   <script src="youtube.js"></script>
   <script src="teams.js"></script>
+  <script src="ai.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
