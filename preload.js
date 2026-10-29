@@ -33,5 +33,10 @@ contextBridge.exposeInMainWorld('api', {
   saveFrame: (opts) => ipcRenderer.invoke('frame:save', opts),
   showFile: (file) => ipcRenderer.invoke('clips:show', file),
   onClipsProgress: (fn) => ipcRenderer.on('clips:progress', (_e, state) => fn(state)),
+  loadCameraMotion: (video) => ipcRenderer.invoke('xbotgo:motion', video),
+  scanDeadTime: (video) => ipcRenderer.invoke('autocut:scan', video),
+  saveCondensed: (opts) => ipcRenderer.invoke('autocut:save', opts),
+  cancelAutoCut: () => ipcRenderer.invoke('autocut:cancel'),
+  onAutoCutProgress: (fn) => ipcRenderer.on('autocut:progress', (_e, state) => fn(state)),
   checkFfmpeg: () => ipcRenderer.invoke('ffmpeg:check'),
 });

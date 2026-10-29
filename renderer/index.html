@@ -50,6 +50,7 @@
         <span id="time">00:00 / 00:00</span>
         <div class="timeline">
           <input id="scrubber" type="range" min="0" max="1000" value="0">
+          <div id="cutStrip" class="cut-strip"></div>
           <div id="markers" class="markers"></div>
         </div>
         <button id="drawBtn" title="Draw on the video (D)">✎ Draw</button>
@@ -73,6 +74,8 @@
       </div>
       <div class="ai-bar">
         <button id="reelBtn" title="Join the plays you pick into one video">Make reel</button>
+        <button id="autoBtn" title="A reel of the best plays, picked for you">Auto highlights</button>
+        <button id="cutBtn" title="Cut the stoppages out of the game">Auto-Cut</button>
         <button id="chBtn" title="Timestamps for a YouTube description">YouTube chapters</button>
       </div>
       <div class="ai-bar">
@@ -167,6 +170,30 @@
     <textarea id="chText" class="ch-text" rows="10" readonly></textarea>
     <p class="row-form"><button id="chCopy">Copy</button> <span id="chNote" class="muted"></span></p>
   </dialog>
+  <dialog id="cutDialog" class="reel-dialog">
+    <div class="dialog-head">
+      <h2>Auto-Cut: a condensed game</h2>
+      <form method="dialog"><button>Close</button></form>
+    </div>
+    <p class="muted">Cuts the stoppages out of the game: from just after the whistle until play starts again. Plays you tagged are never cut. The cut parts are shaded on the timeline.</p>
+    <p class="row-form"><button id="cutFind">Find the stoppages</button></p>
+    <div id="cutProgress" class="cut-progress" hidden>
+      <span id="cutStatus"></span>
+      <div class="an-bar"><div id="cutBar"></div></div>
+      <button id="cutCancel">Stop</button>
+    </div>
+    <p id="cutCamera" class="muted"></p>
+    <p class="row-form"><label>Keep <input id="cutKeepAfter" type="number" min="0" max="15"> s after the whistle</label>
+      <label>and <input id="cutKeepBefore" type="number" min="0" max="15"> s before play starts</label></p>
+    <p class="row-form"><label>Whistles to listen for <select id="cutSens">
+      <option value="low">Only loud, clear ones</option><option value="normal">Normal</option><option value="high">Quieter ones too</option></select></label></p>
+    <p id="cutStillRow" class="row-form"><label><input type="checkbox" id="cutStill"> Also cut when the camera holds still for more than</label>
+      <input id="cutStillMin" type="number" min="8" max="300"> s</p>
+    <p id="cutStopRow" class="row-form"><label>Stoppages last about <input id="cutStop" type="number" min="5" max="120"> s</label></p>
+    <p><label><input type="checkbox" id="cutSkip"> Skip the cut parts while I watch</label></p>
+    <p id="cutSummary"></p>
+    <p class="row-form"><button id="cutSave">Save condensed game…</button></p>
+  </dialog>
   <dialog id="reelDialog" class="reel-dialog">
     <div class="dialog-head">
       <h2>Make a highlight reel</h2>
@@ -175,6 +202,10 @@
     <h3>Plays to include</h3>
     <div id="reelTypes" class="reel-types"></div>
     <p class="row-form"><label>Player <select id="reelPlayer"></select></label></p>
+    <p class="row-form"><label>Length <select id="reelLength">
+      <option value="0">Every play picked</option><option value="60" data-short="1 min">The best 1 minute</option>
+      <option value="120" data-short="2 min">The best 2 minutes</option><option value="180" data-short="3 min">The best 3 minutes</option>
+      <option value="300" data-short="5 min">The best 5 minutes</option></select></label></p>
     <p><label><input type="checkbox" id="reelSuggested"> Include AI plays you haven't reviewed yet</label></p>
     <p><label><input type="checkbox" id="reelOverlay" checked> Show the play and player at the start of each clip</label></p>
     <p class="row-form"><label><input type="radio" name="reelShape" id="reelWide" checked> Wide (16:9)</label>
@@ -236,6 +267,7 @@
   <script src="crop.js"></script>
   <script src="draw.js"></script>
   <script src="chapters.js"></script>
+  <script src="autocut.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

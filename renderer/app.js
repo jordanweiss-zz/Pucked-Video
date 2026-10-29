@@ -36,6 +36,7 @@ async function init() {
   Draw.wire();
   Chapters.wire();
   Crop.wire();
+  AutoCut.wire();
   await Teams.load();
   Teams.onChange = () => { renderTeamSelect(); renderPlayers(); renderTags(); };
   Teams.wire();
@@ -89,6 +90,7 @@ async function loadSavedTags() {
   const saved = await window.api.loadTags(current.key);
   tags = saved?.tags ?? [];
   Draw.load(saved?.drawings);
+  AutoCut.load(saved?.deadTime);
   if (saved?.sport) { $('sport').value = saved.sport; setSport(saved.sport); }
   xbotgoImported = Boolean(saved?.xbotgoImported);
   aiRunPath = saved?.aiRun ?? null;
@@ -208,7 +210,7 @@ async function refreshAiPlays() {
 }
 
 function save() {
-  if (current) window.api.saveTags(current.key, { sport: sport.id, teamId: gameTeamId, xbotgoImported, aiRun: aiRunPath, tags, drawings: Draw.drawings });
+  if (current) window.api.saveTags(current.key, { sport: sport.id, teamId: gameTeamId, xbotgoImported, aiRun: aiRunPath, tags, drawings: Draw.drawings, deadTime: AutoCut.scan });
 }
 
 const esc = (str) => String(str).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
@@ -239,6 +241,7 @@ function renderMarkers() {
     ? tags.map((t, i) => (visible(t) ? `<i data-i="${i}" class="${t.status === 'suggested' ? 'suggested' : ''}" style="left:${(t.time / d) * 100}%;--c:${t.color}" title="${fmt(t.time)} ${t.label}"></i>` : '')).join('')
       + Draw.markers(d)
     : '';
+  AutoCut.render();
 }
 
 // Clicking a tag plays its clip window (before..after) and pauses at the end of it.
@@ -338,6 +341,7 @@ const mediaEvents = {
     $('time').textContent = `${fmt(media.currentTime)} / ${fmt(media.duration)}`;
     if (media.duration) $('scrubber').value = (media.currentTime / media.duration) * 1000;
     if (clipEnd !== null && media.currentTime >= clipEnd) { media.pause(); stopClip(); }
+    AutoCut.onTime();
   },
   loadedmetadata: renderMarkers,
 };
