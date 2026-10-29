@@ -10,6 +10,7 @@
   <header>
     <h1>Pucked Video</h1>
     <label>Sport <select id="sport"></select></label>
+    <button id="teamsBtn">Teams &amp; rosters</button>
     <button id="open">Open video…</button>
     <form id="ytForm" class="yt-form">
       <input id="ytUrl" type="url" placeholder="or paste a YouTube link" required>
@@ -41,13 +42,48 @@
         </select>
       </div>
       <div id="tagButtons" class="tag-buttons"></div>
+      <div class="player-bar">
+        <select id="gameTeam" title="Your team in this game"></select>
+        <div id="playerButtons" class="player-buttons"></div>
+        <span class="muted" id="playerHint"></span>
+      </div>
     </section>
     <aside>
-      <h2>Tags <span id="tagCount" class="muted"></span></h2>
+      <div class="aside-head">
+        <h2>Tags <span id="tagCount" class="muted"></span></h2>
+        <button id="undo" title="Undo the last tag you added (U)">Undo</button>
+        <button id="clearTags" title="Remove every tag in this game">Clear</button>
+      </div>
       <ol id="tagList"></ol>
     </aside>
   </main>
+  <dialog id="teamsDialog" class="teams-dialog">
+    <div class="dialog-head">
+      <h2>Teams &amp; rosters</h2>
+      <form method="dialog"><button>Done</button></form>
+    </div>
+    <div class="teams-cols">
+      <section>
+        <h3>Teams</h3>
+        <ul id="teamList" class="team-list"></ul>
+        <form id="teamForm" class="row-form">
+          <input id="teamName" placeholder="New team name">
+          <button type="submit">Add</button>
+        </form>
+      </section>
+      <section>
+        <h3 id="rosterTitle">Roster</h3>
+        <ul id="playerList" class="player-list"></ul>
+        <form id="playerForm" class="row-form">
+          <input id="playerNum" class="num" type="number" min="0" max="99" placeholder="#">
+          <input id="playerName" placeholder="Player name">
+          <button type="submit">Add</button>
+        </form>
+      </section>
+    </div>
+  </dialog>
   <script src="youtube.js"></script>
+  <script src="teams.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

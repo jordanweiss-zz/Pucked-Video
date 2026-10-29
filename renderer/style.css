@@ -36,5 +36,35 @@ aside { width: 300px; background: var(--panel); padding: 12px; overflow-y: auto;
 #tagList .x { margin-left: auto; padding: 0 6px; }
 #tagList li { flex-wrap: wrap; }
 #tagList li.playing { outline: 1px solid var(--accent); }
+#tagList li.focus { background: #283048; }
 #tagList .note { flex-basis: 100%; background: transparent; border: none; border-top: 1px solid #333843; color: var(--text); font: inherit; font-size: 12px; padding: 4px 0 0; }
 #tagList .note::placeholder { color: var(--muted); }
+
+/* Player bar: pick who a tag is about. */
+.player-bar { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.player-buttons { display: flex; gap: 4px; flex-wrap: wrap; }
+.player-buttons button { padding: 4px 8px; font-size: 12px; }
+.player-buttons button.on { border-color: var(--accent); background: #2b3a6b; }
+#tagList .who { color: #c9d4ff; font-size: 12px; }
+.aside-head { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+.aside-head h2 { margin: 0 auto 0 0; }
+.aside-head button { padding: 3px 8px; font-size: 12px; }
+
+/* Teams & rosters dialog */
+dialog { background: var(--panel); color: var(--text); border: 1px solid #3a3f4a; border-radius: 10px; padding: 16px; }
+dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
+.teams-dialog { width: min(760px, 90vw); }
+.dialog-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.dialog-head h2 { margin: 0; font-size: 16px; }
+.teams-cols { display: grid; grid-template-columns: 1fr 1.4fr; gap: 16px; }
+h3 { font-size: 13px; margin: 0 0 8px; color: var(--muted); font-weight: 600; }
+.team-list, .player-list { list-style: none; padding: 0; margin: 0 0 8px; max-height: 50vh; overflow-y: auto; }
+.team-list li, .player-list li { display: flex; gap: 6px; align-items: center; padding: 4px; border-radius: 6px; }
+.team-list li { cursor: pointer; }
+.team-list li.sel { background: #2b3a6b; }
+.row-form { display: flex; gap: 6px; }
+dialog input, .player-bar select { background: #2a2e37; color: var(--text); border: 1px solid #3a3f4a; border-radius: 6px; padding: 5px 8px; font: inherit; }
+dialog input.team-name, dialog input.pname { flex: 1; min-width: 0; }
+dialog .row-form input:not(.num) { flex: 1; }
+dialog input.num { width: 64px; }
+dialog .x { margin-left: auto; padding: 2px 8px; }

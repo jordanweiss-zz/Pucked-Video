@@ -70,6 +70,19 @@ ipcMain.handle('tags:save', (_e, key, data) => {
   return true;
 });
 
+// Teams and rosters are shared by every game, so they live in the app's data folder.
+const teamsFile = () => path.join(app.getPath('userData'), 'teams.json');
+
+ipcMain.handle('teams:load', () => {
+  const file = teamsFile();
+  return fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : { teams: [] };
+});
+
+ipcMain.handle('teams:save', (_e, data) => {
+  fs.writeFileSync(teamsFile(), JSON.stringify(data, null, 2));
+  return true;
+});
+
 ipcMain.handle('ffmpeg:check', () => new Promise((resolve) => {
   execFile(ffmpegPath, ['-version'], (err, stdout) => {
     resolve(err ? { ok: false, error: err.message } : { ok: true, version: stdout.split('\n')[0] });

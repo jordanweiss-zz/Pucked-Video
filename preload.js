@@ -6,5 +6,7 @@ contextBridge.exposeInMainWorld('api', {
   loadTags: (key) => ipcRenderer.invoke('tags:load', key),
   saveTags: (key, data) => ipcRenderer.invoke('tags:save', key, data),
   loadXbotgoMarks: (videoPath) => ipcRenderer.invoke('xbotgo:marks', videoPath),
+  loadTeams: () => ipcRenderer.invoke('teams:load'),
+  saveTeams: (data) => ipcRenderer.invoke('teams:save', data),
   checkFfmpeg: () => ipcRenderer.invoke('ffmpeg:check'),
 });
