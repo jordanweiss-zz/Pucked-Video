@@ -164,3 +164,10 @@ button:disabled { opacity: 0.5; cursor: default; }
 .logo-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .logo-preview { width: 48px; height: 48px; object-fit: contain; background: #2a2e37; border-radius: 6px; border: 1px solid #3a3f4a; }
 .logo-preview:not([src]), .logo-preview[src=""] { visibility: hidden; }
+
+/* Auto-Cut: the parts it will cut, shaded over the timeline, and the whistles it heard */
+.cut-strip { position: absolute; left: 0; right: 0; top: 2px; height: 14px; pointer-events: none; }
+.cut-strip i { position: absolute; top: 0; bottom: 0; background: rgba(255, 77, 79, 0.35); border-radius: 2px; }
+.cut-strip b { position: absolute; top: -2px; width: 2px; height: 4px; margin-left: -1px; background: #fff; opacity: 0.8; }
+.cut-progress { margin: 8px 0; }
+.cut-progress .an-bar { margin: 6px 0; }

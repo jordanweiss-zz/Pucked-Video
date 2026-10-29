@@ -79,11 +79,8 @@ const Clips = {
     $('reelDialog').showModal();
   },
 
-  reelClips() {
-    const types = new Set([...$('reelTypes').querySelectorAll('input:checked')].map((c) => c.value));
-    const player = $('reelPlayer').value;
-    const picked = this.reelPool().filter((t) => types.has(t.label) && (!player || t.player?.id === player));
-    // Plays whose clips overlap become one clip, so nothing is shown twice.
+  // Plays whose clips overlap become one clip, so nothing is shown twice.
+  merge(picked) {
     const clips = [];
     for (const t of picked.slice().sort((a, b) => a.time - b.time)) {
       const w = this.window(t);
@@ -96,6 +93,49 @@ const Clips = {
     return clips;
   },
 
+  // How good a play is for an automatic reel: what kind of play, how sure the AI is, a named
+  // player, other plays close by, and how much the camera was moving (rushes make it swing).
+  weights: { Goal: 10, Highlight: 6, Save: 6, Shot: 5, 'Odd-man rush': 5, Penalty: 4, 'Shot or pass': 3, Faceoff: 1, 'Line change': 0, Note: 0 },
+  score(t, pool) {
+    let s = (this.weights[t.label] ?? 3) * (t.status === 'suggested' ? t.confidence ?? 0.5 : 1);
+    if (t.player) s *= 1.3;
+    s += 0.5 * pool.filter((x) => x !== t && Math.abs(x.time - t.time) < 15).length;
+    const m = AutoCut.motion;
+    if (m) {
+      const w = this.window(t);
+      const secs = m.slice(Math.floor(w.start), Math.ceil(w.end)).filter((x) => x !== null);
+      if (secs.length) s += Math.min(2, secs.reduce((a, b) => a + b, 0) / secs.length / 4);
+    }
+    return s;
+  },
+
+  // The best plays that fit in about `secs` seconds, shown in game order.
+  best(picked, secs) {
+    const ranked = picked.map((t) => ({ t, s: this.score(t, picked) })).sort((a, b) => b.s - a.s);
+    const chosen = [];
+    const length = (list) => this.merge(list).reduce((a, c) => a + c.end - c.start, 0);
+    for (const { t, s } of ranked) {
+      if (s <= 0) break;
+      if (length([...chosen, t]) <= secs + 5) chosen.push(t);
+    }
+    return chosen;
+  },
+
+  reelClips() {
+    const types = new Set([...$('reelTypes').querySelectorAll('input:checked')].map((c) => c.value));
+    const player = $('reelPlayer').value;
+    const picked = this.reelPool().filter((t) => types.has(t.label) && (!player || t.player?.id === player));
+    const secs = Number($('reelLength').value);
+    return this.merge(secs ? this.best(picked, secs) : picked);
+  },
+
+  // Auto highlights: every kind of play, AI plays too, cut down to the best two minutes.
+  openAuto() {
+    $('reelLength').value = '120';
+    $('reelSuggested').checked = tags.some((t) => t.status === 'suggested');
+    this.openReel();
+  },
+
   renderReel() {
     const clips = this.reelClips();
     const secs = clips.reduce((a, c) => a + c.end - c.start, 0);
@@ -106,7 +146,7 @@ const Clips = {
   async saveReel() {
     const clips = this.reelClips();
     const player = $('reelPlayer').selectedOptions[0];
-    const name = $('reelPlayer').value ? `${player.textContent} highlights` : 'Highlights';
+    const name = `${$('reelPlayer').value ? `${player.textContent} highlights` : 'Highlights'}${Number($('reelLength').value) ? ` best ${$('reelLength').selectedOptions[0].dataset.short}` : ''}`;
     const vertical = $('reelVertical').checked;
     const out = await window.api.saveVideoAs(`${this.base()} - ${name}${vertical ? ' 9x16' : ''}.mp4`);
     if (!out) return;
@@ -196,10 +236,12 @@ const Clips = {
       if (s.state !== 'running') this.saving = false;
       this.toast(s);
     });
-    $('reelBtn').onclick = () => this.openReel();
+    $('reelBtn').onclick = () => { $('reelLength').value = '0'; this.openReel(); };
     $('reelTypes').onchange = () => this.renderReel();
     $('reelPlayer').onchange = () => this.renderReel();
     $('reelSuggested').onchange = () => this.renderReel();
+    $('reelLength').onchange = () => this.renderReel();
+    $('autoBtn').onclick = () => this.openAuto();
     $('reelSave').onclick = () => this.saveReel();
     $('reelVertical').onchange = () => { $('reelSoft').hidden = !$('reelVertical').checked || (video.videoHeight || 1080) > 1080; };
     $('reelWide').onchange = $('reelVertical').onchange;

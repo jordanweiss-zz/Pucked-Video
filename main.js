@@ -5,6 +5,7 @@ const { pathToFileURL } = require('url');
 const { execFile } = require('child_process');
 const hockeyAi = require('./hockey-ai');
 const clips = require('./clips');
+const autocut = require('./autocut');
 
 // ffmpeg-static ships inside the asar archive; the binary has to be read from the unpacked copy.
 const ffmpegPath = require('ffmpeg-static').replace('app.asar', 'app.asar.unpacked');
@@ -120,6 +121,7 @@ function allowYouTubeEmbeds() {
 
 hockeyAi.register();
 clips.register();
+autocut.register();
 
 app.whenReady().then(() => {
   allowYouTubeEmbeds();

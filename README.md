@@ -24,6 +24,8 @@ npm start
 - Teams and rosters, so a tag can say which player it's about
 - Clips: change how much of each play a tag covers, save a clip as an MP4, or **Make reel** from the plays and player you pick, with the play name shown on each clip. Encoding uses the graphics card when it can.
 - **Draw** (D) on a paused frame with arrows, lines, circles and a pen, then **Save picture** to share it
+- **Auto highlights**: a reel of the best 1, 2, 3 or 5 minutes, picked from your tags, XBotGo clicks and AI plays (goals first, then plays with a player, plays close together, and plays where the camera was swinging)
+- **Auto-Cut**: listens for the referee's whistle and reads the XBotGo camera log to find stoppages, shades them on the timeline, can skip them while you watch, and saves a condensed game (no re-encoding, so it takes a minute). Tagged plays are never cut.
 - **YouTube chapters** made from your tags, ready to paste into a video description
 - Hockey AI (optional, runs on your PC): set it up in **Hockey AI**, then use **Analyze game** on a game. You click a few rink markings once per game (**Set up rink**). The analysis runs overnight, and the plays it finds show up as suggestions to keep or drop. **AI players** fixes the jersey numbers it read, and the **post-game report** prints a summary. The app runs Hockey_AI as described in its `docs/app_contract.md`.
 
