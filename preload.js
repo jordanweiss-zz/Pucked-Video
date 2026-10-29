@@ -11,6 +11,8 @@ contextBridge.exposeInMainWorld('api', {
   loadSettings: () => ipcRenderer.invoke('settings:load'),
   saveSettings: (data) => ipcRenderer.invoke('settings:save', data),
   pickFolder: (title) => ipcRenderer.invoke('folder:pick', title),
+  checkAiDir: (dir) => ipcRenderer.invoke('ai:dir:check', dir),
+  findAiDir: () => ipcRenderer.invoke('ai:dir:find'),
   loadAiEvents: (dir) => ipcRenderer.invoke('ai:events:load', dir),
   saveAiEvents: (dir, data) => ipcRenderer.invoke('ai:events:save', dir, data),
   pickAiResults: (defaultPath) => ipcRenderer.invoke('ai:import:pick', defaultPath),

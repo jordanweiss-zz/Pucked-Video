@@ -18,6 +18,11 @@ const AI = {
 
   async load() {
     this.settings = await window.api.loadSettings();
+    // No folder yet, or one that isn't Hockey_AI (such as a videos folder): look for it in the usual places.
+    if (!(await window.api.checkAiDir(this.dir))) {
+      const found = await window.api.findAiDir();
+      if (found) await this.setDir(found);
+    }
   },
 
   get dir() { return this.settings.hockeyAiDir ?? ''; },
@@ -37,14 +42,18 @@ const AI = {
     this.config = null;
     $('aiTypes').innerHTML = '';
     $('aiStatus').textContent = '';
-    if (!this.dir) { $('aiStatus').textContent = 'Choose your Hockey_AI folder to change its settings.'; return; }
+    $('aiPlays').hidden = true;
+    $('aiSave').hidden = true;
+    if (!this.dir) { $('aiStatus').textContent = 'Choose where Hockey AI is installed to see which plays it finds.'; return; }
     try {
       this.config = await window.api.loadAiEvents(this.dir);
     } catch (err) {
       $('aiStatus').textContent = `Couldn't read Hockey_AI's settings: ${err.message}`;
       return;
     }
-    if (!this.config) { $('aiStatus').textContent = 'That folder has no config/events.json. Is it the Hockey_AI folder?'; return; }
+    if (!this.config) { $('aiStatus').textContent = 'That isn\'t the Hockey AI folder. Click Change… and pick the Hockey_AI folder (the one with main.py in it).'; return; }
+    $('aiPlays').hidden = false;
+    $('aiSave').hidden = false;
     const c = this.config;
     const conf = (t) => c.min_confidence?.[t] ?? c.min_confidence?.default ?? 0.7;
     const cool = (t) => c.cooldown_sec?.[t] ?? c.cooldown_sec?.default ?? 10;
@@ -128,8 +137,13 @@ const AI = {
   wire() {
     $('aiBtn').onclick = () => this.open();
     $('aiPickDir').onclick = async () => {
-      const dir = await window.api.pickFolder('Choose your Hockey_AI folder');
-      if (!dir) return;
+      const picked = await window.api.pickFolder('Choose where Hockey AI is installed (the Hockey_AI folder)');
+      if (!picked) return;
+      const dir = await window.api.checkAiDir(picked);
+      if (!dir) {
+        alert(`${picked} isn't the Hockey AI folder. Pick the Hockey_AI folder, the one with main.py and a config folder in it (for example C:\\Users\\you\\Projects\\Hockey_AI). Your game videos stay wherever they are.`);
+        return;
+      }
       await this.setDir(dir);
       $('aiDir').textContent = dir;
       await this.loadConfig();

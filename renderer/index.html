@@ -148,13 +148,16 @@
       <h2>Hockey AI settings</h2>
       <form method="dialog"><button>Done</button></form>
     </div>
-    <p class="row-form"><span class="muted">Hockey_AI folder:</span> <span id="aiDir"></span> <button id="aiPickDir">Change…</button></p>
+    <p class="row-form"><span class="muted">Hockey AI is installed in:</span> <span id="aiDir"></span> <button id="aiPickDir">Change…</button></p>
+    <p class="muted">This is the Hockey_AI program folder (the one with main.py), not your videos folder. The app looks for it by itself.</p>
+    <div id="aiPlays" hidden>
     <h3>Which plays to find</h3>
     <table class="ai-types">
       <thead><tr><th>Play</th><th>Minimum confidence</th><th>Gap between same plays</th></tr></thead>
       <tbody id="aiTypes"></tbody>
     </table>
     <p class="row-form"><label>Gap between any two plays <input id="aiGap" type="number" min="0" max="120" step="1"> s</label></p>
+    </div>
     <p class="row-form"><button id="aiSave">Save settings</button> <span id="aiStatus" class="muted"></span></p>
   </dialog>
   <dialog id="aiPlayersDialog" class="ai-players-dialog">
