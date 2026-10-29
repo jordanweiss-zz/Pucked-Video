@@ -32,6 +32,7 @@ async function init() {
   AiPlayers.wire();
   Rink.wire();
   Analyze.wire();
+  Clips.wire();
   await Teams.load();
   Teams.onChange = () => { renderTeamSelect(); renderPlayers(); renderTags(); };
   Teams.wire();
@@ -222,7 +223,8 @@ function renderTags() {
       + (t.status === 'suggested'
         ? ` <span class="conf">AI ${Math.round((t.confidence ?? 0) * 100)}%</span><button class="x ok" data-ok="${i}" title="Keep this play">✓</button><button class="no" data-no="${i}" title="Not a real play">✗</button>`
         : `<button class="x" data-del="${i}">×</button>`)
-      + `<input class="note" data-note="${i}" placeholder="Add a note…" value="${esc(t.note ?? '')}"></li>`))
+      + `<input class="note" data-note="${i}" placeholder="Add a note…" value="${esc(t.note ?? '')}">`
+      + (t === focusTag ? Clips.row(t, i) : '') + '</li>'))
     .join('');
   renderMarkers();
 }
@@ -239,6 +241,7 @@ let clipEnd = null;
 function playClip(i) {
   const t = tags[i];
   focusTag = t;
+  renderTags();
   renderPlayers();
   media.currentTime = Math.max(0, t.time - t.before);
   clipEnd = t.time + t.after;
@@ -288,10 +291,12 @@ $('tagList').onclick = (e) => {
     return;
   }
   if (e.target.dataset.note !== undefined) return;
+  if (e.target.closest('.clip-row')) return Clips.onRowClick(e);
   const li = e.target.closest('li');
   if (li) playClip(Number(li.dataset.i));
 };
 $('tagList').onchange = (e) => {
+  if (e.target.closest('.clip-row')) return Clips.onRowChange(e);
   if (e.target.dataset.note === undefined) return;
   tags[Number(e.target.dataset.note)].note = e.target.value.trim();
   save();
