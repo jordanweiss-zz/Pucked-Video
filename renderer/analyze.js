@@ -98,11 +98,13 @@ const Analyze = {
     $('anCheck').hidden = !st.overlays.length;
     $('anOverlays').innerHTML = st.overlays.map((o, i) => `<img src="${esc(o.url)}" alt="Rink lines over a video frame" title="Click to open full size" data-overlay="${i}">`).join('');
 
-    $('anReport').hidden = !st.analyzed;
+    // Always shown, so the report choices can be found; they work once the game is analyzed.
+    $('anReport').classList.toggle('waiting', !st.analyzed);
+    $('repWaiting').hidden = st.analyzed;
     if (!$('repTeamA').value && st.teams?.team_a) $('repTeamA').value = st.teams.team_a;
     if (!$('repTeamB').value && st.teams?.team_b) $('repTeamB').value = st.teams.team_b;
     this.renderReportChoices(st);
-    $('repMake').disabled = running || Boolean(otherJob);
+    $('repMake').disabled = running || Boolean(otherJob) || !st.analyzed;
     $('repOpen').hidden = !st.report;
   },
 
@@ -127,7 +129,7 @@ const Analyze = {
     };
     $('repPlayers').innerHTML = shown.length
       ? shown.map((p) => `<label><input type="checkbox" value="${esc(p.player_id)}" ${picked.has(p.player_id) ? 'checked' : ''}> ${who(p)}</label>`).join('')
-      : '<span class="muted">No named players yet. Name them under AI players.</span>';
+      : `<span class="muted">${st.analyzed ? 'No named players yet. Name them under AI players.' : 'The players Hockey AI finds will be listed here.'}</span>`;
     $('repPlayersNote').textContent = picked.size ? `Player pages for the ${picked.size} you ticked.` : 'Nobody ticked, so every player gets a page.';
   },
 
@@ -139,7 +141,7 @@ const Analyze = {
 
   async start(fresh = false) {
     if (fresh && !confirm('Throw away what was already done and analyze the whole game again from the start?')) return;
-    const res = await window.api.analyzeGame(AI.dir, current.path, { fresh });
+    const res = await window.api.analyzeGame(AI.dir, current.path, { fresh, render: $('anRender').checked });
     if (!res.ok) return alert(res.error);
     this.job = await window.api.getAiJob();
     this.render();
@@ -182,6 +184,8 @@ const Analyze = {
     $('aiJobBadge').onclick = () => this.open();
     $('anStart').onclick = () => this.start();
     $('anFresh').onclick = () => this.start(true);
+    $('anRender').checked = Boolean(AI.settings.aiRender);
+    $('anRender').onchange = () => { AI.settings.aiRender = $('anRender').checked; window.api.saveSettings(AI.settings); };
     $('repFocus').onchange = () => this.renderReportChoices(this.status);
     $('repPlayers').onchange = () => this.renderReportChoices(this.status);
     $('anCancel').onclick = async () => {

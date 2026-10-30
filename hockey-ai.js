@@ -62,9 +62,24 @@ function loadAiRun(exportPath) {
 }
 
 // Each game gets its own copy of the user's play settings, so a run always says which settings it used.
+// The user's play settings live in the app's own settings (Hockey AI settings screen). Hockey_AI's
+// config/events.json is only the starting point, and the app never writes to it.
+const appSettingsFile = () => path.join(app.getPath('userData'), 'settings.json');
+function playSettings(hai) {
+  try {
+    const mine = readJson(appSettingsFile(), {}).playSettings;
+    if (mine) return mine;
+  } catch { /* fall back to Hockey_AI's defaults */ }
+  return readJson(aiEventsFile(hai), null);
+}
+
+function writeEvents(hai, file) {
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, JSON.stringify(playSettings(hai), null, 2));
+}
+
 function writeGameEvents(hai, f) {
-  fs.mkdirSync(f.out, { recursive: true });
-  fs.copyFileSync(aiEventsFile(hai), f.events);
+  writeEvents(hai, f.events);
 }
 
 function calibOverlays(f) {
@@ -196,7 +211,7 @@ function friendlyError(msg) {
 
 // Steps 1-4 of the contract. Weights are hours of work per hour of video, for the progress bar and estimate.
 // Re-running a step's same command resumes from its checkpoint; `fresh` throws that away and starts over.
-function analyzeSteps(f, startOffset, fresh = false) {
+function analyzeSteps(f, startOffset, fresh = false, render = false) {
   const off = String(startOffset);
   const restart = fresh ? ['--fresh'] : [];
   return [
@@ -212,7 +227,9 @@ function analyzeSteps(f, startOffset, fresh = false) {
       id: 'analyze', label: 'Find the plays (uses the graphics card)', weight: 4.5,
       skip: () => fs.existsSync(f.report) && mtime(f.report) > mtime(f.camera),
       args: () => ['main.py', '-i', f.video, '-o', f.annotated, '--gpu', '--xbotgo-track', f.track, '--start-offset', off,
-        '--camera-calib', f.camera, '--event-config', f.events, ...restart],
+        '--camera-calib', f.camera, '--event-config', f.events, ...restart,
+        // The app draws its own overlays, so the annotated copy (about 12 GB per game hour) is optional.
+        ...(render ? [] : ['--no-render'])],
     },
     {
       id: 'players', label: 'Read jersey numbers', weight: 0.75,
@@ -237,11 +254,8 @@ function checkReady(hai, f) {
 }
 
 function register() {
+  // Hockey_AI's default play settings, to start from before the user has saved their own.
   ipcMain.handle('ai:events:load', (_e, hai) => readJson(aiEventsFile(hai), null));
-  ipcMain.handle('ai:events:save', (_e, hai, data) => {
-    fs.writeFileSync(aiEventsFile(hai), JSON.stringify(data, null, 2));
-    return true;
-  });
 
   // Pick a finished run's <base>_events_export.json and return it with its roster file, if there is one.
   ipcMain.handle('ai:import:pick', async (_e, defaultPath) => {
@@ -267,7 +281,7 @@ function register() {
     const py = hai && aiPython(hai);
     if (!py) return resolve({ ok: false, error: 'Choose your Hockey_AI folder in Hockey AI settings first.' });
     const events = `${base}_events.json`;
-    fs.copyFileSync(aiEventsFile(hai), events);
+    writeEvents(hai, events);
     const args = ['-u', 'scripts/filter_events.py', base, '--start-offset', String(startOffset ?? 0), '--config', events, '--write'];
     execFile(py, args, { cwd: hai, maxBuffer: 16 * 1024 * 1024, windowsHide: true }, (err, stdout, stderr) => {
       if (!err) return resolve({ ok: true });
@@ -303,7 +317,7 @@ function register() {
     if (problem) return { ok: false, error: problem };
     writeGameEvents(hai, f);
     if (opts.fresh) fs.rmSync(f.checkpoint, { force: true });
-    runJob(hai, 'analyze', video, analyzeSteps(f, 0, Boolean(opts.fresh)));
+    runJob(hai, 'analyze', video, analyzeSteps(f, 0, Boolean(opts.fresh), Boolean(opts.render)));
     return { ok: true };
   });
 

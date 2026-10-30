@@ -96,6 +96,28 @@ ipcMain.handle('settings:save', (_e, data) => {
   return true;
 });
 
+// Hockey_AI is a folder with config/events.json and main.py in it. Look in the usual places, so the
+// user doesn't have to know where it went.
+const isHockeyAi = (dir) => Boolean(dir) && fs.existsSync(path.join(dir, 'config', 'events.json')) && fs.existsSync(path.join(dir, 'main.py'));
+ipcMain.handle('ai:dir:check', (_e, dir) => {
+  if (isHockeyAi(dir)) return dir;
+  // Picked the folder one level up, or a download that unzipped into Hockey_AI-main\Hockey_AI-main.
+  for (const sub of ['Hockey_AI', 'Hockey_AI-main', 'hockey_ai']) if (dir && isHockeyAi(path.join(dir, sub))) return path.join(dir, sub);
+  return null;
+});
+ipcMain.handle('ai:dir:find', () => {
+  const home = app.getPath('home');
+  const spots = ['Projects', 'Documents', 'Desktop', 'Downloads', '', 'source/repos', 'Documents/GitHub', 'GitHub'];
+  for (const s of spots) {
+    for (const name of ['Hockey_AI', 'Hockey_AI-main', 'hockey_ai']) {
+      const d = path.join(home, s, name);
+      if (isHockeyAi(d)) return d;
+      if (isHockeyAi(path.join(d, name))) return path.join(d, name);
+    }
+  }
+  return null;
+});
+
 ipcMain.handle('folder:pick', async (_e, title) => {
   const { canceled, filePaths } = await dialog.showOpenDialog({ title, properties: ['openDirectory'] });
   return canceled ? null : filePaths[0];
