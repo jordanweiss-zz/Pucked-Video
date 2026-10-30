@@ -1,15 +1,32 @@
 # Pucked Video
 
-A desktop app for reviewing XBotGo Falcon game film, in the style of Hudl. Hockey comes first, and other sports are added as presets in `sports/`.
+An app for reviewing XBotGo Falcon game film, in the style of Hudl. Hockey comes first, and other sports are added as presets in `sports/`.
 
 ## Run it
 
-You need Node.js 20 or newer.
+Pucked Video is a Python server that does the work (files, ffmpeg, Hockey AI runs) and screens that run in a window or a browser.
+
+**As a desktop app.** You need Node.js 20 or newer and Python 3.10 or newer.
 
 ```bash
 npm install
 npm start
 ```
+
+The first start sets up the app's own Python environment in its data folder, which takes a minute or two. After that it opens straight away.
+
+**In a browser.**
+
+```bash
+pip install -r server/requirements.txt
+python -m server
+```
+
+Then open http://127.0.0.1:8765/. For now the server only answers this computer, and file pickers ask you to type a path. Sign-in and a built-in file browser come in later steps.
+
+Hockey AI runs are their own process, so closing or updating the app doesn't stop an overnight analysis. Open the app again and it shows the run where it is.
+
+**Tests.** `pip install pytest` then `python -m pytest tests`.
 
 ## What it does
 
@@ -54,6 +71,7 @@ These were built and tested in a headless test setup but haven't been tried on t
 - Periods and game clock
 - Syncing sound from a separate recorder
 - Running the AI on another computer (for example a Mac Mini) on your home network
+- The rest of the web version: browser-ready playback of H.265 games, sign-in with MFA, shared games, an upload portal and AWS (see the plan)
 
 ## Keyboard
 

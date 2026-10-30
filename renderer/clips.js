@@ -247,7 +247,7 @@ const Clips = {
     $('logoSize').value = l.size;
     $('logoOpacity').value = Math.round(l.opacity * 100);
     $('logoPreview').hidden = !l.file;
-    if (l.file) $('logoPreview').src = `file:///${encodeURI(l.file.replace(/\\/g, '/').replace(/^\/+/, '')).replace(/#/g, '%23').replace(/\?/g, '%3F')}`;
+    if (l.file) $('logoPreview').src = window.api.fileUrl(l.file);
   },
 
   // What every clip in one export looks like: shape, output height and logo.
