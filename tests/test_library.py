@@ -34,3 +34,38 @@ def test_thumbnail(api, client, game):
     url = api('library:thumb', str(game))
     assert url and client.get(url).status_code == 200
     assert api('library:thumb', str(game)) == url  # made once, then reused
+
+
+def test_progress_of_a_run_outside_the_app(api, tmp_path):
+    import os
+    import time
+    from datetime import datetime, timezone
+    v = tmp_path / 'game.mp4'
+    v.write_bytes(b'x' * 10)
+    api('tags:save', str(v), {'tags': []})
+    an = tmp_path / 'game_analysis'
+    an.mkdir()
+    prog = an / 'game_progress.json'
+    now = datetime.now(timezone.utc).isoformat()
+
+    def write(**kw):
+        prog.write_text(json.dumps({'schema_version': 1, 'step': 'analyze', 'state': 'running', 'percent': 42.5, 'fps': 7.1,
+                                    'eta_s': 3600, 'message': '', 'pid': os.getpid(), 'started_at': now, 'updated_at': now, **kw}))
+
+    def progress():
+        return next(g for g in api('library:scan', [str(tmp_path)]) if g['name'] == 'game')['progress']
+
+    assert progress() is None
+    write()
+    p = progress()
+    assert p['state'] == 'running' and p['percent'] == 42.5 and p['etaS'] == 3600 and not p['ours']
+    assert api('ai:game', None, str(v))['aiProgress']['state'] == 'running'
+    # Not heard from for over a minute, or its process is gone: it stopped.
+    write(updated_at=time.time() - 120)
+    assert progress()['state'] == 'stopped'
+    write(pid=None)
+    assert progress()['state'] == 'stopped'
+    write(state='failed', message='out of memory')
+    assert progress()['state'] == 'failed' and progress()['message'] == 'out of memory'
+    write(schema_version=2)
+    assert progress() is None

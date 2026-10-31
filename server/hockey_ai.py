@@ -49,6 +49,7 @@ def game_files(video: str) -> dict:
         'players': f'{base}_players.json',
         'pdf': f'{base}_postgame.pdf',
         'html': f'{base}_postgame.html',
+        'progress': f'{base}_progress.json',  # where Hockey_AI's latest run is, written by every step
         'checkpoint': f'{base}_checkpoint.json',  # left by a step that stopped partway, so it can resume
         'manifest': f'{base}_manifest.json',  # what's saved and what can be re-derived (contract v2, 8e)
         'shifts': f'{base}_shifts.json',  # per-team and per-player skating numbers (contract v2, 8d)
@@ -142,6 +143,7 @@ def game_status(hai, video):
         'report': f['pdf'] if exists(f['pdf']) else f['html'] if exists(f['html']) else None,
         'teams': game_names(f),
         'checkpoint': checkpoint_of(f),
+        'aiProgress': library.ai_progress(f['base'], video),
         'overlays': calib_overlays(f),
         'hasData': exists(f['shifts']),
         'update': library.ai_update(_safe_json(f['manifest'])),

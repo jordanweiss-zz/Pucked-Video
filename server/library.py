@@ -6,10 +6,11 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import ffmpeg
+from . import ffmpeg, jobs
 from .config import DATA_DIR, files_url, read_json
 
 VIDEO = re.compile(r'\.(mp4|mov|m4v|mkv)$', re.I)
@@ -55,6 +56,52 @@ def ai_update(manifest):
     return {'stale': stale, 'canUpdate': bool(stale), 'needsGpu': bool(manifest.get('needs_gpu'))}
 
 
+# A run that hasn't written its progress file for this long has stopped (Hockey_AI writes it every ~5 s).
+PROGRESS_STALE_S = 60
+
+
+def _seconds(t):
+    """A time from Hockey_AI as Unix seconds: an ISO string, or a number in seconds or milliseconds."""
+    if isinstance(t, (int, float)):
+        return t / 1000 if t > 1e11 else float(t)
+    if isinstance(t, str):
+        try:
+            d = datetime.fromisoformat(t.replace('Z', '+00:00'))
+        except ValueError:
+            return None
+        return (d if d.tzinfo else d.astimezone()).timestamp()
+    return None
+
+
+def ai_progress(base, video=None):
+    """Where Hockey AI's latest run on a game is, from <BASE>_progress.json (contract v2), for any run:
+    the app's own, one started by hand, or one that kept going while the app was closed.
+    "running" with no update for a minute, or whose process is gone, is shown as stopped."""
+    p = _json(Path(f'{base}_progress.json'))
+    if not isinstance(p, dict) or p.get('schema_version') != 1:
+        return None
+    state = p.get('state') if p.get('state') in ('running', 'done', 'failed', 'cancelled') else None
+    if not state:
+        return None
+    updated = _seconds(p.get('updated_at'))
+    if state == 'running' and (not p.get('pid') or not jobs.pid_alive(p['pid'])
+                               or updated is None or time.time() - updated > PROGRESS_STALE_S):
+        state = 'stopped'
+    job = jobs.read_status() if video else None
+    num = lambda v: v if isinstance(v, (int, float)) else None
+    return {
+        'state': state,
+        'step': p.get('step'),
+        'percent': num(p.get('percent')),
+        'fps': num(p.get('fps')),
+        'etaS': num(p.get('eta_s')),
+        'message': p.get('message') if isinstance(p.get('message'), str) else '',
+        'updatedAt': updated,
+        # The app's own run is already shown from its job; this tells the screens not to show it twice.
+        'ours': bool(video and job and job.get('video') == video and jobs.running()),
+    }
+
+
 def _date(name: str, vdata, mtime: float) -> str:
     if vdata and vdata.get('file_time'):
         return str(vdata['file_time']).replace(' ', 'T')
@@ -97,6 +144,7 @@ def game(file: Path):
         'analyzed': Path(f'{base}_report.json').exists(),
         'hasData': Path(f'{base}_shifts.json').exists(),
         'ai': ai_update(_json(Path(f'{base}_manifest.json'))),
+        'progress': ai_progress(base, str(file)),
         'report': str(pdf) if pdf.exists() else None,
         'hasTags': saved is not None,
     }

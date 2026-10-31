@@ -42,11 +42,38 @@ const Analyze = {
     return ((Date.now() - s.startedAt) / 1000) * ((100 - s.pct) / s.pct) + rest * perWeight;
   },
 
+  // What Hockey AI's own progress file says about a run the app isn't running itself (started by hand,
+  // or still going from before the app was opened). Steps are named by Hockey_AI.
+  stepNames: { calibrate: 'Mapping the rink', analyze: 'Finding the plays', players: 'Reading jersey numbers', name_players: 'Reading jersey numbers',
+    filter: 'Picking the plays to show', filter_events: 'Picking the plays to show', report: 'Making the report', game_report: 'Making the report',
+    derive: 'Updating the numbers', scoreboard: 'Reading the scoreboard' },
+
+  outside(st = this.status) {
+    const p = st?.aiProgress;
+    return p && !p.ours ? p : null;
+  },
+
+  outsideText(p) {
+    const step = this.stepNames[p.step] ?? (p.step ? `Step "${p.step}"` : 'Hockey AI');
+    const pct = p.percent != null ? ` ${Math.floor(p.percent)}%` : '';
+    if (p.state === 'running') {
+      return `Hockey AI is working on this game outside the app. ${step}:${pct}${p.etaS ? ` · about ${this.dur(p.etaS)} left` : ''}${p.fps ? ` · ${p.fps.toFixed(1)} frames a second` : ''}.`;
+    }
+    if (p.state === 'stopped') {
+      const when = p.updatedAt ? ` (last heard from at ${new Date(p.updatedAt * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })})` : '';
+      return `Hockey AI stopped while ${step.toLowerCase()} at${pct || ' an unknown point'}${when}. Start it again to carry on.`;
+    }
+    if (p.state === 'failed') return `Hockey AI's last run on this game failed while ${step.toLowerCase()}${p.message ? `: ${p.message}` : '.'}`;
+    return '';
+  },
+
   render() {
     const st = this.status;
     const job = this.job?.video === current?.path ? this.job : null;
     const otherJob = this.job?.state === 'running' && !job ? this.job : null;
     const running = job?.state === 'running';
+    const outside = this.outside(st);
+    const outsideRunning = outside?.state === 'running';
     const rinkOk = st.calibrated || Rink.check(st.picks).ok;
     const hdOk = !video.videoWidth || (video.videoWidth === 1920 && video.videoHeight === 1080);
 
@@ -73,12 +100,16 @@ const Analyze = {
       + (s.status === 'running' ? ` <span class="muted">${Math.floor(s.pct ?? 0)}%${s.resumedFrom ? `, carried on from ${fmt(s.resumedFrom)}` : ''}</span>` : '')
       + (s.status === 'skipped' ? ' <span class="muted">already done</span>' : '') + '</li>').join('');
 
-    const pct = job ? (job.state === 'done' ? 100 : this.overall(job)) : 0;
+    const pct = job ? (job.state === 'done' ? 100 : this.overall(job)) : outside?.percent ?? 0;
     $('anBar').style.width = `${pct}%`;
-    const left = running ? this.timeLeft(job) : null;
+    // Hockey_AI's own estimate for the step it's on is better than ours, once it has one.
+    const own = st.aiProgress?.ours && st.aiProgress.state === 'running' ? st.aiProgress.etaS : null;
+    const after = running ? job.steps.slice(job.steps.findIndex((s) => s.status === 'running') + 1).filter((s) => s.status !== 'skipped') : [];
+    const left = running ? (own != null ? own + after.reduce((a, s) => a + s.weight, 0) * hours * 3600 : this.timeLeft(job)) : null;
     const cp = running ? null : st.checkpoint;
     const where = cp ? `${cp.step === 'calibrate' ? 'Mapping the rink' : 'Finding the plays'} stopped at ${fmt(cp.resumeFrom)} of the game` : '';
-    $('anStatus').textContent = cp && job?.state !== 'done' ? `${where}. Resume carries on from there, so nothing done so far is lost.`
+    $('anStatus').textContent = outside && !running && (outside.state !== 'failed' || !job) && this.outsideText(outside) ? this.outsideText(outside)
+      : cp && job?.state !== 'done' ? `${where}. Resume carries on from there, so nothing done so far is lost.`
       : !job ? (st.upToDate ? 'This game is analyzed. Change the rink points to run it again.' : '')
       : running ? `${Math.floor(pct)}% done${left ? ` · about ${this.dur(left)} left` : ''}`
         : job.state === 'done' ? (job.kind === 'report' ? 'The report is ready.' : `Done in ${this.dur((job.finishedAt - job.startedAt) / 1000)}. The plays are in your tag list to review.`)
@@ -87,7 +118,7 @@ const Analyze = {
     $('anError').textContent = job?.error ? `${job.error}${job.fixable ? '' : ' (Details has more.)'}` : '';
 
     $('anStart').hidden = running || (st.upToDate && !cp && !['failed', 'cancelled'].includes(job?.state));
-    $('anStart').disabled = Boolean(otherJob) || !(AI.dir && st.python && st.hasTrack && rinkOk && hdOk);
+    $('anStart').disabled = Boolean(otherJob) || outsideRunning || !(AI.dir && st.python && st.hasTrack && rinkOk && hdOk);
     $('anStart').textContent = cp ? `Resume from ${fmt(cp.resumeFrom)}` : job?.state === 'cancelled' || job?.state === 'failed' ? 'Start again' : 'Start analysis';
     $('anFresh').hidden = !cp || running;
     $('anFresh').disabled = $('anStart').disabled;
@@ -168,8 +199,27 @@ const Analyze = {
 
   renderBadge() {
     const j = this.job;
-    $('aiJobBadge').hidden = !j || j.state !== 'running';
+    const o = this.outside();
     if (j?.state === 'running') $('aiJobBadge').textContent = `Hockey AI ${Math.floor(this.overall(j))}%`;
+    else if (o?.state === 'running') $('aiJobBadge').textContent = `Hockey AI ${o.percent != null ? `${Math.floor(o.percent)}%` : 'working'}`;
+    $('aiJobBadge').hidden = j?.state !== 'running' && o?.state !== 'running';
+  },
+
+  // A run outside the app sends no updates, so read its progress file again every few seconds.
+  async pollOutside() {
+    if (!this.isLocalGame() || this.job?.state === 'running' || this.polling) return;
+    const was = this.outside()?.state;
+    if (was !== 'running' && !$('analyzeDialog').open) return;
+    this.polling = true;
+    try {
+      await this.refreshStatus();
+    } finally {
+      this.polling = false;
+    }
+    this.renderBadge();
+    if ($('analyzeDialog').open && this.status) this.render();
+    // It finished: bring its plays in, as for a run the app started.
+    if (was === 'running' && this.outside()?.state === 'done' && this.status?.hasExport) await this.importFinished();
   },
 
   async start(fresh = false) {
@@ -189,8 +239,9 @@ const Analyze = {
 
   // Opening a game that Hockey AI already analyzed brings its plays in, once.
   async gameOpened() {
-    if (!this.isLocalGame()) return;
+    if (!this.isLocalGame()) { this.status = null; this.renderBadge(); return; }
     await this.refreshStatus();
+    this.renderBadge();
     if (this.status.hasExport && !aiRunPath) {
       const { added } = await this.importFinished();
       if (added) $('aiCount').textContent = `${this.plays(added)} from Hockey AI to review`;
@@ -214,6 +265,7 @@ const Analyze = {
     window.api.onAiJob((job) => this.onJob(job));
     // Keep the time-left estimate moving between progress lines.
     setInterval(() => { if (this.job?.state === 'running' && $('analyzeDialog').open && this.status) this.render(); }, 15000);
+    setInterval(() => this.pollOutside(), 5000);
     $('aiAnalyze').onclick = () => this.open();
     $('aiJobBadge').onclick = () => this.open();
     $('anStart').onclick = () => this.start();
