@@ -101,11 +101,44 @@ const Analyze = {
     // Always shown, so the report choices can be found; they work once the game is analyzed.
     $('anReport').classList.toggle('waiting', !st.analyzed);
     $('repWaiting').hidden = st.analyzed;
-    if (!$('repTeamA').value && st.teams?.team_a) $('repTeamA').value = st.teams.team_a;
-    if (!$('repTeamB').value && st.teams?.team_b) $('repTeamB').value = st.teams.team_b;
+    this.renderTeams(st);
     this.renderReportChoices(st);
     $('repMake').disabled = running || Boolean(otherJob) || !st.analyzed;
     $('repOpen').hidden = !st.report;
+  },
+
+  // Game setup: each team's name, jersey colour and home team, saved with the game for Hockey AI.
+  renderTeams(st) {
+    const colors = ['', ...(st.teamColors ?? [])];
+    const label = (c) => (c ? c.replace('_', ' ').replace(/^./, (x) => x.toUpperCase()) : 'Jersey colour…');
+    for (const id of ['teamColorA', 'teamColorB']) {
+      if ($(id).options.length !== colors.length) $(id).innerHTML = colors.map((c) => `<option value="${c}">${label(c)}</option>`).join('');
+    }
+    // Fill the fields once per game, so typing isn't undone by a progress update.
+    if (this.teamsFor !== st.files.video) {
+      this.teamsFor = st.files.video;
+      const g = st.gameTeams ?? {};
+      $('repTeamA').value = g.team_a?.name ?? st.teams?.team_a ?? '';
+      $('repTeamB').value = g.team_b?.name ?? st.teams?.team_b ?? '';
+      $('teamColorA').value = g.team_a?.color ?? '';
+      $('teamColorB').value = g.team_b?.color ?? '';
+      const home = g.team_a?.home ? 'team_a' : g.team_b?.home ? 'team_b' : '';
+      for (const r of document.querySelectorAll('input[name=homeTeam]')) r.checked = r.value === home;
+      $('teamsStatus').textContent = '';
+    }
+    $('teamsWarn').hidden = !st.teamCheck?.ambiguous;
+  },
+
+  async saveTeams() {
+    const home = document.querySelector('input[name=homeTeam]:checked')?.value;
+    const team = (k, name, color) => ({ name: $(name).value.trim(), color: $(color).value, home: home === k });
+    const res = await window.api.saveGameTeams(AI.dir || null, current.path,
+      { team_a: team('team_a', 'repTeamA', 'teamColorA'), team_b: team('team_b', 'repTeamB', 'teamColorB') });
+    if (!res.ok) return alert(res.error);
+    $('teamsStatus').textContent = res.updating ? 'Saved. Hockey AI is updating the game with them (no graphics card needed).' : 'Saved.';
+    if (res.updating) this.job = await window.api.getAiJob();
+    await this.refreshStatus();
+    this.render();
   },
 
   // Report choices: which team it's about, and which players get their own pages.
@@ -188,6 +221,7 @@ const Analyze = {
     $('anRender').checked = Boolean(AI.settings.aiRender);
     $('anRender').onchange = () => { AI.settings.aiRender = $('anRender').checked; window.api.saveSettings(AI.settings); };
     $('repFocus').onchange = () => this.renderReportChoices(this.status);
+    $('teamsSave').onclick = () => this.saveTeams();
     $('repPlayers').onchange = () => this.renderReportChoices(this.status);
     $('anCancel').onclick = async () => {
       if (confirm('Stop the analysis? Starting it again later carries on where it stopped.')) await window.api.cancelAiJob();

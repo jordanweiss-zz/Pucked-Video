@@ -30,6 +30,7 @@ const GameData = {
       ? 'Hockey AI hasn\'t analyzed this game yet. Use Analyze game first.'
       : sh ? 'From the saved analysis. Nothing is re-run to show these.'
         : 'This game was analyzed before Hockey AI saved skating numbers. Update analysis makes them from the saved results, if it can.';
+    $('gdTeamWarn').hidden = !d.teamCheck?.ambiguous;
     this.renderUpdate();
     this.renderTeams();
     this.renderGoals();

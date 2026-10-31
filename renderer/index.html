@@ -270,11 +270,18 @@
       <p class="muted">The lines should sit on the boards, blue lines and goal lines. If they miss, add more points in Rink setup and start again.</p>
       <div id="anOverlays" class="an-overlays"></div>
     </section>
+    <section id="anTeams">
+      <h3>Teams in this game</h3>
+      <p class="muted">Hockey AI tells the teams apart by jersey colour. The names show in Game data and the report.</p>
+      <p class="row-form"><input id="repTeamA" placeholder="Team name, e.g. Bulldogs"> <select id="teamColorA" title="Jersey colour"></select> <label class="muted"><input type="radio" name="homeTeam" value="team_a"> Home</label></p>
+      <p class="row-form"><input id="repTeamB" placeholder="Other team, e.g. Flyers"> <select id="teamColorB" title="Jersey colour"></select> <label class="muted"><input type="radio" name="homeTeam" value="team_b"> Home</label></p>
+      <p class="row-form"><button id="teamsSave">Save teams</button> <span id="teamsStatus" class="muted"></span></p>
+      <p id="teamsWarn" class="an-error" hidden>Hockey AI isn't sure which team wore which colour (the colours are close, or it saw too few players), so the names may be on the wrong team. Check a goal or two in the video.</p>
+    </section>
     <section id="anReport">
       <h3>Post-game report</h3>
       <p id="repWaiting" class="muted">Available once this game is analyzed. You can set the title and teams now.</p>
       <p class="row-form"><input id="repTitle" placeholder="Title, e.g. Bulldogs vs Flyers"></p>
-      <p class="row-form"><input id="repTeamA" placeholder="Team A name"> <input id="repTeamB" placeholder="Team B name"></p>
       <p class="row-form"><label>Report on <select id="repFocus"><option value="both">Both teams</option></select></label></p>
       <p class="muted">The territory and event map, game flow and plays by type always show both teams.</p>
       <h4>Player pages</h4>
@@ -298,6 +305,7 @@
       <form method="dialog"><button>Close</button></form>
     </div>
     <p id="gdIntro" class="muted"></p>
+    <p id="gdTeamWarn" class="an-error" hidden>Hockey AI isn't sure which team wore which colour, so the team names may be swapped. Check them in Analyze game, under Teams in this game.</p>
     <div id="gdUpdate" class="gd-update" hidden>
       <span id="gdUpdateText"></span>
       <button id="gdUpdateBtn">Update analysis</button>

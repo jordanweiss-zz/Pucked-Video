@@ -106,5 +106,6 @@
     libraryThumb: (file) => call('library:thumb', file),
     aiGameData: (video) => call('ai:data', video),
     updateAnalysis: (hai, video) => call('ai:update', hai, video),
+    saveGameTeams: (hai, video, teams) => call('ai:teams:save', hai, video, teams),
   };
 })();

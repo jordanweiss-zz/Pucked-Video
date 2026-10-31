@@ -51,6 +51,7 @@ CALLS = {
     'library:thumb': library.thumb,
     'ai:data': hockey_ai.game_data,
     'ai:update': hockey_ai.update,
+    'ai:teams:save': hockey_ai.save_game_teams,
 }
 
 LOCAL_HOSTS = {'127.0.0.1', 'localhost', '[::1]'}

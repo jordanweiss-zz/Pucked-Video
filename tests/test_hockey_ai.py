@@ -222,3 +222,26 @@ def test_update_needs_a_new_enough_hockey_ai(api, hai, xgame):
     base.parent.mkdir()
     Path(f'{base}_report.json').write_text('{}')
     assert 'too old' in api('ai:update', str(hai), str(xgame))['error']
+
+
+def test_game_setup_team_names_and_colours(api, hai, xgame):
+    base = xgame.parent / 'game_analysis' / 'game'
+    bad = api('ai:teams:save', str(hai), str(xgame), {'team_a': {'name': 'Hawks', 'color': 'pink'}, 'team_b': {'color': 'white'}})
+    assert not bad['ok'] and 'colour' in bad['error']
+    two = api('ai:teams:save', str(hai), str(xgame), {'team_a': {'color': 'red', 'home': True}, 'team_b': {'color': 'white', 'home': True}})
+    assert not two['ok'] and 'home' in two['error']
+
+    # Before analysis the setup is only saved, ready for Hockey AI to read.
+    teams = {'team_a': {'name': ' Hawks ', 'color': 'red', 'home': True}, 'team_b': {'name': '', 'color': 'light_blue'}}
+    assert api('ai:teams:save', str(hai), str(xgame), teams) == {'ok': True, 'updating': False}
+    assert json.loads(Path(f'{base}_teams.json').read_text()) == {
+        'schema_version': 1, 'team_a': {'name': 'Hawks', 'color': 'red', 'home': True}, 'team_b': {'name': 'Team B', 'color': 'light_blue'}}
+
+    # After analysis, typed names win over Hockey AI's colours and a change re-labels the teams on the CPU.
+    Path(f'{base}_report.json').write_text(json.dumps({'summary': {'teams': {'team_a': 'Black', 'team_b': 'White'}}}))
+    Path(f'{base}_team_map.json').write_text(json.dumps({'ambiguous': True, 'swap': False}))
+    d = api('ai:data', str(xgame))
+    assert d['teams'] == {'team_a': 'Hawks', 'team_b': 'Team B'} and d['teamCheck'] == {'ambiguous': True, 'swap': False}
+    assert api('ai:teams:save', str(hai), str(xgame), teams) == {'ok': True, 'updating': True}
+    job = wait_until(lambda j: j['state'] != 'running')
+    assert job['state'] == 'done' and job['kind'] == 'derive', job
