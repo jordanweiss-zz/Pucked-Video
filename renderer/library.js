@@ -42,12 +42,23 @@ const Library = {
     return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
   },
 
+  // Hockey AI's latest run on the game, when it isn't simply finished.
+  progress(g) {
+    const p = g.progress;
+    const pct = p?.percent != null ? ` ${Math.floor(p.percent)}%` : '';
+    if (p?.state === 'running') return `<span class="badge new" title="${p.etaS ? `About ${Analyze.dur(p.etaS)} left` : ''}">Analyzing${pct}</span>`;
+    if (p?.state === 'stopped') return `<span class="badge warn" title="Open the game and start Hockey AI again to carry on">Stopped at${pct || ' ?'}</span>`;
+    if (p?.state === 'failed') return `<span class="badge warn" title="${esc(p.message || '')}">AI run failed</span>`;
+    return '';
+  },
+
   render() {
     const shown = $('libAnalyzed').checked ? this.games.filter((g) => g.analyzed) : this.games;
     $('libCount').textContent = `${shown.length} game${shown.length === 1 ? '' : 's'}`;
     $('libGrid').innerHTML = shown.length ? shown.map((g) => {
       const i = this.games.indexOf(g);
       const badges = [
+        this.progress(g),
         g.analyzed && '<span class="badge ok">Analyzed</span>',
         g.ai?.canUpdate && '<span class="badge new" title="Newer numbers can be made from the saved analysis, without the graphics card">Update available</span>',
         g.tags && `<span class="badge">${g.tags} tag${g.tags === 1 ? '' : 's'}</span>`,

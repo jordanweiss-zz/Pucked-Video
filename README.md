@@ -24,7 +24,7 @@ python -m server
 
 Then open http://127.0.0.1:8765/. For now the server only answers this computer, and file pickers ask you to type a path. Sign-in and a built-in file browser come in later steps.
 
-Hockey AI runs are their own process, so closing or updating the app doesn't stop an overnight analysis. Open the app again and it shows the run where it is.
+Hockey AI runs are their own process, so closing or updating the app doesn't stop an overnight analysis. Open the app again and it shows the run where it is. It also shows runs it didn't start (for example one you ran by hand), from the progress file Hockey AI keeps for each game: the Analyze screen gives the step, percent and time left, and Games marks each game Analyzing, Stopped or Failed.
 
 **Tests.** `pip install pytest` then `python -m pytest tests`.
 
