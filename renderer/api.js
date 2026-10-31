@@ -50,6 +50,12 @@
       lastDir = info.path.replace(/[\\/][^\\/]*$/, '');
       return info;
     },
+    // Open a game the library listed, without a file dialog.
+    async openVideoPath(file) {
+      const info = await call('video:info', file);
+      if (info) lastDir = info.path.replace(/[\\/][^\\/]*$/, '');
+      return info;
+    },
     listSports: () => call('sports:list'),
     loadTags: (key) => call('tags:load', key),
     saveTags: (key, data) => call('tags:save', key, data),
@@ -110,5 +116,10 @@
     pickYoutubeClient: () => pickFile('Choose the file Google gave you (client_secret_….json)', [{ name: 'Google client', extensions: ['json'] }]),
     // Google won't sign in inside an app's own window, so web pages open in the computer's browser.
     openExternal: (url) => (native?.openExternal ? native.openExternal(url) : window.open(url, '_blank', 'noopener')),
+    scanLibrary: (folders) => call('library:scan', folders),
+    libraryThumb: (file) => call('library:thumb', file),
+    aiGameData: (video) => call('ai:data', video),
+    updateAnalysis: (hai, video) => call('ai:update', hai, video),
+    saveGameTeams: (hai, video, teams) => call('ai:teams:save', hai, video, teams),
   };
 })();

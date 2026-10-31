@@ -39,6 +39,8 @@ async function init() {
   AutoCut.wire();
   Follow.wire();
   Review.wire();
+  Library.wire();
+  GameData.wire();
   await Teams.load();
   Teams.onChange = () => { renderTeamSelect(); renderPlayers(); renderTags(); };
   Teams.wire();
@@ -56,7 +58,11 @@ function setSport(id) {
 }
 
 async function openVideo() {
-  const file = await window.api.openVideo();
+  showGame(await window.api.openVideo());
+}
+
+// Start reviewing a local game: from Open video… or the game library.
+async function showGame(file) {
   if (!file) return;
   useMedia(video);
   current = { ...file, key: file.path };

@@ -13,6 +13,7 @@
     <button id="teamsBtn">Teams &amp; rosters</button>
     <button id="aiBtn">Hockey AI</button>
     <button id="aiJobBadge" class="job-badge" hidden title="Show Hockey AI's progress"></button>
+    <button id="libraryBtn" title="Every game in your video folders">Games</button>
     <button id="open">Open video…</button>
     <form id="ytForm" class="yt-form">
       <input id="ytUrl" type="url" placeholder="or paste a YouTube link" required>
@@ -103,6 +104,7 @@
         <button id="aiAnalyze" title="Have Hockey AI find the plays in this game (runs overnight)">Analyze game</button>
         <button id="aiImport" title="Load the plays Hockey AI found in this game">Import AI plays</button>
         <button id="aiPlayers" title="Name the players Hockey AI tracked in this game" hidden>AI players</button>
+        <button id="gameDataBtn" title="Skating, ice time and team numbers from this game's saved analysis">Game data</button>
         <label class="muted"><input type="checkbox" id="showAi" checked> Show suggestions</label>
         <span id="aiCount" class="muted"></span>
       </div>
@@ -341,17 +343,53 @@
       <p class="muted">The lines should sit on the boards, blue lines and goal lines. If they miss, add more points in Rink setup and start again.</p>
       <div id="anOverlays" class="an-overlays"></div>
     </section>
+    <section id="anTeams">
+      <h3>Teams in this game</h3>
+      <p class="muted">Hockey AI tells the teams apart by jersey colour. The names show in Game data and the report.</p>
+      <p class="row-form"><input id="repTeamA" placeholder="Team name, e.g. Bulldogs"> <select id="teamColorA" title="Jersey colour"></select> <label class="muted"><input type="radio" name="homeTeam" value="team_a"> Home</label></p>
+      <p class="row-form"><input id="repTeamB" placeholder="Other team, e.g. Flyers"> <select id="teamColorB" title="Jersey colour"></select> <label class="muted"><input type="radio" name="homeTeam" value="team_b"> Home</label></p>
+      <p class="row-form"><button id="teamsSave">Save teams</button> <span id="teamsStatus" class="muted"></span></p>
+      <p id="teamsWarn" class="an-error" hidden>Hockey AI isn't sure which team wore which colour (the colours are close, or it saw too few players), so the names may be on the wrong team. Check a goal or two in the video.</p>
+    </section>
     <section id="anReport">
       <h3>Post-game report</h3>
       <p id="repWaiting" class="muted">Available once this game is analyzed. You can set the title and teams now.</p>
       <p class="row-form"><input id="repTitle" placeholder="Title, e.g. Bulldogs vs Flyers"></p>
-      <p class="row-form"><input id="repTeamA" placeholder="Team A name"> <input id="repTeamB" placeholder="Team B name"></p>
       <p class="row-form"><label>Report on <select id="repFocus"><option value="both">Both teams</option></select></label></p>
       <p class="muted">The territory and event map, game flow and plays by type always show both teams.</p>
       <h4>Player pages</h4>
       <div id="repPlayers" class="reel-types"></div>
       <p id="repPlayersNote" class="muted"></p>
       <p class="row-form"><button id="repMake">Make report</button> <button id="repOpen" hidden>Open last report</button></p>
+    </section>
+  </dialog>
+  <dialog id="libraryDialog" class="library-dialog">
+    <div class="dialog-head">
+      <h2>Games</h2>
+      <form method="dialog"><button>Close</button></form>
+    </div>
+    <p class="row-form"><span class="muted">Looking in:</span> <span id="libFolders"></span> <button id="libAdd">Add folder…</button></p>
+    <p class="row-form"><label class="muted"><input type="checkbox" id="libAnalyzed"> Only analyzed games</label> <span id="libCount" class="muted"></span></p>
+    <div id="libGrid" class="lib-grid"></div>
+  </dialog>
+  <dialog id="gameDataDialog" class="game-data-dialog">
+    <div class="dialog-head">
+      <h2>Game data</h2>
+      <form method="dialog"><button>Close</button></form>
+    </div>
+    <p id="gdIntro" class="muted"></p>
+    <p id="gdTeamWarn" class="an-error" hidden>Hockey AI isn't sure which team wore which colour, so the team names may be swapped. Check them in Analyze game, under Teams in this game.</p>
+    <div id="gdUpdate" class="gd-update" hidden>
+      <span id="gdUpdateText"></span>
+      <button id="gdUpdateBtn">Update analysis</button>
+    </div>
+    <section id="gdTeams"></section>
+    <section id="gdGoals"></section>
+    <section id="gdPlayersSec" hidden>
+      <h3>Players</h3>
+      <p class="muted">Distance, speed and sprints come straight from the analysis. Shifts and ice time show only for players you've named under AI players, and are at least these.</p>
+      <p class="row-form"><label class="muted"><input type="checkbox" id="gdUnnamed"> Include unnamed tracks</label> <label class="muted">Period <select id="gdPeriod"><option value="">Whole game</option></select></label></p>
+      <div class="gd-scroll"><table class="gd-table" id="gdPlayers"></table></div>
     </section>
   </dialog>
   <script src="api.js"></script>
@@ -368,6 +406,8 @@
   <script src="autocut.js"></script>
   <script src="follow.js"></script>
   <script src="review.js"></script>
+  <script src="library.js"></script>
+  <script src="gamedata.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
