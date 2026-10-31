@@ -20,7 +20,14 @@
       <button type="submit">Load</button>
     </form>
     <span id="ffmpeg" class="muted"></span>
+    <button id="noticeBtn" class="notice-btn" title="Notices">🔔<span id="noticeCount" class="notice-count" hidden></span></button>
   </header>
+  <div id="noticePanel" class="notice-panel" hidden>
+    <div class="dialog-head"><h2>Notices</h2><button id="noticeClear" title="Remove the finished and failed jobs from the list">Clear finished</button></div>
+    <ul id="noticeList" class="notice-list"></ul>
+    <label class="muted notice-setting"><input type="checkbox" id="noticeDesktop"> Also show a notice on my desktop when a job finishes or fails while I'm in another window</label>
+  </div>
+  <div id="toasts" class="toasts"></div>
   <main>
     <section class="player">
       <div class="stage">
@@ -408,6 +415,7 @@
   <script src="review.js"></script>
   <script src="library.js"></script>
   <script src="gamedata.js"></script>
+  <script src="notices.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

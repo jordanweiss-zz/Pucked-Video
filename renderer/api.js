@@ -121,5 +121,11 @@
     aiGameData: (video) => call('ai:data', video),
     updateAnalysis: (hai, video) => call('ai:update', hai, video),
     saveGameTeams: (hai, video, teams) => call('ai:teams:save', hai, video, teams),
+    listNotices: () => call('notices:list'),
+    markNoticesRead: () => call('notices:read'),
+    clearNotices: () => call('notices:clear'),
+    dismissNotice: (id) => call('notices:dismiss', id),
+    onNotice: (fn) => on('notices', fn),
+    onNotices: (fn) => on('notices:all', fn),
   };
 })();

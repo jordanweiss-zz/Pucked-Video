@@ -147,6 +147,13 @@ ipcMain.handle('native:save-file', async (e, { title, filters, defaultPath } = {
   return canceled ? null : filePath;
 });
 
+ipcMain.handle('native:focus', (e) => {
+  const win = BrowserWindow.fromWebContents(e.sender);
+  if (!win) return;
+  if (win.isMinimized()) win.restore();
+  win.show();
+  win.focus();
+});
 ipcMain.handle('native:open-path', (_e, file) => shell.openPath(file));
 ipcMain.handle('native:show-item', (_e, file) => shell.showItemInFolder(file));
 // Web pages (Google sign-in, YouTube) open in the computer's own browser. Only https links.
@@ -164,6 +171,9 @@ function allowYouTubeEmbeds() {
 }
 
 let port = null;
+
+// Windows only shows an app's desktop notices once it knows the app's id.
+if (isWin) app.setAppUserModelId('video.pucked.app');
 
 app.whenReady().then(async () => {
   allowYouTubeEmbeds();

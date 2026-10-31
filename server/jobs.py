@@ -15,7 +15,7 @@ import sys
 import time
 from pathlib import Path
 
-from . import events
+from . import events, notices
 from .config import APP_DIR, DATA_DIR
 
 STATUS_FILE = 'ai-job.json'
@@ -82,6 +82,12 @@ def view(job):
     return {k: v for k, v in job.items() if k not in ('spec', 'runnerPid')}
 
 
+def _publish(job) -> None:
+    """Tell the screens, and keep the job's notice (bell, pop-up, desktop) in step."""
+    events.send('ai:job', view(job))
+    notices.ai_job(job)
+
+
 def running() -> bool:
     job = read_status()
     if not job or job.get('state') != 'running':
@@ -123,7 +129,7 @@ def start(hai, kind, video, opts) -> None:
     if latest.get('startedAt') == now and not latest.get('runnerPid'):
         latest['runnerPid'] = proc.pid
         write_status(latest)
-    events.send('ai:job', view(latest))
+    _publish(latest)
 
 
 def _kill_tree(pid) -> None:
@@ -157,7 +163,7 @@ def cancel() -> bool:
         _kill_tree(job['runnerPid'])
     _end(job, 'cancelled')
     write_status(job)
-    events.send('ai:job', view(job))
+    _publish(job)
     return True
 
 
@@ -186,6 +192,6 @@ async def watch() -> None:
         if job and check_stopped(job):
             stamp = None
         if stamp != last and job:
-            events.send('ai:job', view(job))
+            _publish(job)
         last = stamp
         await asyncio.sleep(0.5)
