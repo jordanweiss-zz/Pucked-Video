@@ -48,7 +48,6 @@ const Analyze = {
     const otherJob = this.job?.state === 'running' && !job ? this.job : null;
     const running = job?.state === 'running';
     const rinkOk = st.calibrated || Rink.check(st.picks).ok;
-    const hdOk = !video.videoWidth || (video.videoWidth === 1920 && video.videoHeight === 1080);
 
     const hours = (media.duration || 0) / 3600;
     const work = hours * ((st.calibrated ? 0 : 1) + (st.analyzed ? 0 : 4.5) + 0.75);
@@ -59,7 +58,6 @@ const Analyze = {
     const need = (ok, text, fix) => `<li class="${ok ? 'ok' : ''}">${ok ? '✓' : '○'} ${text}${!ok && fix ? ` ${fix}` : ''}</li>`;
     $('anNeeds').innerHTML = need(Boolean(AI.dir) && st.python, AI.dir ? (st.python ? 'Hockey_AI is set up' : 'Hockey_AI has no Python set up in that folder') : 'Choose your Hockey_AI folder', '<button class="link" data-fix="settings">Hockey AI settings…</button>')
       + need(st.hasTrack, st.hasTrack ? 'XBotGo camera log found' : 'No XBotGo camera log next to this video (the hidden .data folder)')
-      + (hdOk ? '' : need(false, `Unsupported resolution: Hockey AI needs 1920×1080 video, and this one is ${video.videoWidth}×${video.videoHeight}`))
       + need(rinkOk, st.calibrated ? 'Rink mapped' : rinkOk ? `Rink set up (${st.picks.length} points)` : `Set up the rink (${st.picks.length} of at least 8 points)`, '<button class="link" data-fix="rink">Set up rink…</button>');
 
     const steps = job?.steps ?? [
@@ -87,7 +85,7 @@ const Analyze = {
     $('anError').textContent = job?.error ? `${job.error}${job.fixable ? '' : ' (Details has more.)'}` : '';
 
     $('anStart').hidden = running || (st.upToDate && !cp && !['failed', 'cancelled'].includes(job?.state));
-    $('anStart').disabled = Boolean(otherJob) || !(AI.dir && st.python && st.hasTrack && rinkOk && hdOk);
+    $('anStart').disabled = Boolean(otherJob) || !(AI.dir && st.python && st.hasTrack && rinkOk);
     $('anStart').textContent = cp ? `Resume from ${fmt(cp.resumeFrom)}` : job?.state === 'cancelled' || job?.state === 'failed' ? 'Start again' : 'Start analysis';
     $('anFresh').hidden = !cp || running;
     $('anFresh').disabled = $('anStart').disabled;
