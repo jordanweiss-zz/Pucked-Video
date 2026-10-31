@@ -308,8 +308,9 @@ def friendly_error(msg):
     """Hockey_AI's ERROR lines are shown as they are, except ones with a plainer way to say them."""
     m = re.search(r'--lens is for 1920x1080 video, this video is (\d+x\d+)', msg or '')
     if m:
-        return ('Unsupported resolution: Hockey AI only works on 1920×1080 XBotGo video for now, and this video is '
-                f"{m.group(1).replace('x', '×')}.")
+        # Only an older Hockey_AI says this; current ones take any size up to 4K.
+        return (f"This video is {m.group(1).replace('x', '×')}, and your copy of Hockey_AI only handles 1920×1080. "
+                'Update Hockey_AI to analyze videos of any size up to 4K.')
     return msg
 
 

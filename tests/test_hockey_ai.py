@@ -136,7 +136,7 @@ def test_failure_is_explained(api, hai, xgame):
     api('ai:analyze', str(hai), str(xgame), {})
     job = wait_until(lambda j: j['state'] != 'running')
     assert job['state'] == 'failed' and job['fixable']
-    assert job['error'].startswith('Unsupported resolution') and '1280×720' in job['error']
+    assert job['error'].startswith('This video is 1280×720') and 'Update Hockey_AI' in job['error']
 
 
 def test_cancel_stops_the_run(api, hai, xgame):

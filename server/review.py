@@ -91,7 +91,7 @@ def segment_args(video, seg, i, frames, look, game_audio):
         inputs += silence
         audio = f"{2 if seg.get('drawing') is not None else 1}:a"
     return ['-hide_banner', '-y', *inputs, '-filter_complex', graph, '-map', '[v]', '-map', audio,
-            '-frames:v', str(frames), '-t', f'{dur:.4f}', *clips.pick_encoder()['args'], '-c:a', 'pcm_s16le',
+            '-frames:v', str(frames), '-t', f'{dur:.4f}', *clips.encoder_args(None, w, h), '-c:a', 'pcm_s16le',
             '-ar', '48000', '-ac', '2', '-progress', 'pipe:1', '-nostats', f'seg{i}.mkv']
 
 

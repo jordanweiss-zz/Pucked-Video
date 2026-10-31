@@ -84,3 +84,24 @@ def test_camera_motion(api, tmp_path):
     ]))
     assert api('xbotgo:motion', str(tmp_path / 'g.mp4')) == [2.5, 0.0, None, 0.0]
     assert autocut.track_motion(str(tmp_path / 'none.mp4')) is None
+
+
+def test_4k_game_full_size_and_1080p_copy(api, tmp_path):
+    game = tmp_path / 'game4k.mp4'
+    subprocess.run(['ffmpeg', '-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc=d=2:s=3840x2160:r=30',
+                    '-c:v', 'libx264', '-preset', 'ultrafast', str(game)], check=True)
+    for look, want in [({'outW': 3840, 'outH': 2160}, (3840, 2160)),
+                       ({'outW': 1920, 'outH': 1080, 'scaleH': 1080}, (1920, 1080)),
+                       ({'vertical': True, 'outW': 1080, 'outH': 1920}, (1080, 1920))]:
+        out = tmp_path / f'{want[0]}x{want[1]}.mp4'
+        assert api('clips:export', {'video': str(game), 'clips': [{'start': 0, 'end': 1}], 'out': str(out), 'look': look})['ok']
+        wait_for_clips()
+        assert size(out) == want
+
+
+def test_bigger_pictures_get_more_bitrate():
+    assert clips.bitrate(1920, 1080) == '10M'
+    assert clips.bitrate(3840, 2160) == '40M'
+    assert clips.bitrate(1080, 1920) == '10M'
+    assert clips.bitrate(640, 360) == '6M'
+    assert '{rate}' not in ' '.join(clips.encoder_args(clips.ENCODERS[0], 3840, 2160))
