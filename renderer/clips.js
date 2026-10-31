@@ -252,13 +252,16 @@ const Clips = {
     if (l.file) $('logoPreview').src = window.api.fileUrl(l.file);
   },
 
-  // What every clip in one export looks like: shape, output height and logo.
+  // What every clip in one export looks like: shape, size and logo. Games bigger than 1080p (up to 4K)
+  // are saved at full size, or as a 1080p copy if the user picked that.
   look(vertical) {
-    const outW = vertical ? 1080 : video.videoWidth || 1920;
-    const outH = vertical ? 1920 : video.videoHeight || 1080;
+    const vw = video.videoWidth || 1920, vh = video.videoHeight || 1080;
+    const scaleH = !vertical && vh > 1080 && AI.settings.exportSize === '1080' ? 1080 : null;
+    const outW = vertical ? 1080 : scaleH ? Math.round((vw * scaleH) / vh / 2) * 2 : vw;
+    const outH = vertical ? 1920 : scaleH ?? vh;
     const l = this.logo;
     return {
-      vertical, outW, outH,
+      vertical, outW, outH, scaleH,
       logo: l.on && l.file ? { file: l.file, corner: l.corner, opacity: l.opacity, width: Math.round((outW * l.size) / 100) } : null,
     };
   },
@@ -343,7 +346,14 @@ const Clips = {
       $(id).value = String(this.drawPause);
       $(id).onchange = (e) => this.setDrawPause(Number(e.target.value));
     }
-    $('reelVertical').onchange = () => { $('reelSoft').hidden = !$('reelVertical').checked || (video.videoHeight || 1080) > 1080; };
+    $('reelVertical').onchange = () => {
+      const vw = video.videoWidth, vh = video.videoHeight || 1080;
+      $('reelSoft').hidden = !$('reelVertical').checked || vh > 1080;
+      $('reelSizeRow').hidden = $('reelVertical').checked || vh <= 1080;
+      $('reelSizeFull').textContent = `Full size (${vw}×${vh})`;
+      $('reelSize').value = AI.settings.exportSize === '1080' ? '1080' : 'full';
+    };
+    $('reelSize').onchange = () => { AI.settings.exportSize = $('reelSize').value; window.api.saveSettings(AI.settings); };
     $('reelWide').onchange = $('reelVertical').onchange;
     $('logoPick').onclick = async () => {
       const file = await window.api.pickLogo();
