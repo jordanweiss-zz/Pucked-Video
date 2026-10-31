@@ -114,13 +114,16 @@ const GameData = {
       .filter(([, p]) => unnamed || p.number != null)
       .map(([id, p]) => ({ id, p, s: this.sum(p, period) }))
       .filter((r) => r.s.shifts)
-      .sort((a, b) => b.s.toi - a.s.toi);
+      .sort((a, b) => (b.s.distance ?? 0) - (a.s.distance ?? 0));
+    // Shifts and ice time only for players someone named by hand (AI players), as the user chose:
+    // for the rest they're stretches where the number happened to be readable, not real shifts.
+    const byHand = new Set((this.data.players?.players ?? []).filter((x) => x.source === 'user').map((x) => x.player_id));
     const order = ['offensive', 'neutral', 'defensive'];
     const zoneKeys = [...new Set(rows.flatMap((r) => Object.keys(r.s.zones)))]
       .sort((a, b) => (order.indexOf(a) + 1 || 9) - (order.indexOf(b) + 1 || 9));
     $('gdPlayers').innerHTML = `<thead><tr><th>Player</th><th>Team</th><th title="At least">Shifts</th><th title="Game-clock time, at least">Ice time</th><th>Distance</th><th>Top speed</th><th>Avg speed</th><th>Sprints</th>${zoneKeys.map((z) => `<th>${esc(z[0].toUpperCase() + z.slice(1))} zone</th>`).join('')}</tr></thead><tbody>${rows.map(({ id, p, s }) => `<tr data-seek="${s.first ?? ''}" title="Click to watch their first shift">
       <td>${p.number != null ? `#${esc(p.number)}` : `<span class="muted">${esc(id)}</span>`}</td><td>${esc(this.teamName(p.team))}</td>
-      <td>${s.shifts}+</td><td>${this.mins(s.toi)}+</td><td>${this.num(s.distance)} ft</td><td>${this.num(s.top, 1)} mph</td><td>${this.num(s.avg, 1)} mph</td><td>${this.num(s.sprints)}</td>
+      ${byHand.has(id) ? `<td>${s.shifts}+</td><td>${this.mins(s.toi)}+</td>` : '<td class="muted" title="Name this player under AI players to see shifts and ice time">–</td><td class="muted">–</td>'}<td>${this.num(s.distance)} ft</td><td>${this.num(s.top, 1)} mph</td><td>${this.num(s.avg, 1)} mph</td><td>${this.num(s.sprints)}</td>
       ${zoneKeys.map((z) => `<td>${this.mins(s.zones[z])}</td>`).join('')}</tr>`).join('')}</tbody>`;
   },
 
