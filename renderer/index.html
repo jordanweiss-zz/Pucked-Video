@@ -13,6 +13,7 @@
     <button id="teamsBtn">Teams &amp; rosters</button>
     <button id="aiBtn">Hockey AI</button>
     <button id="aiJobBadge" class="job-badge" hidden title="Show Hockey AI's progress"></button>
+    <button id="libraryBtn" title="Every game in your video folders">Games</button>
     <button id="open">Open video…</button>
     <form id="ytForm" class="yt-form">
       <input id="ytUrl" type="url" placeholder="or paste a YouTube link" required>
@@ -94,6 +95,7 @@
         <button id="aiAnalyze" title="Have Hockey AI find the plays in this game (runs overnight)">Analyze game</button>
         <button id="aiImport" title="Load the plays Hockey AI found in this game">Import AI plays</button>
         <button id="aiPlayers" title="Name the players Hockey AI tracked in this game" hidden>AI players</button>
+        <button id="gameDataBtn" title="Skating, ice time and team numbers from this game's saved analysis">Game data</button>
         <label class="muted"><input type="checkbox" id="showAi" checked> Show suggestions</label>
         <span id="aiCount" class="muted"></span>
       </div>
@@ -281,6 +283,34 @@
       <p class="row-form"><button id="repMake">Make report</button> <button id="repOpen" hidden>Open last report</button></p>
     </section>
   </dialog>
+  <dialog id="libraryDialog" class="library-dialog">
+    <div class="dialog-head">
+      <h2>Games</h2>
+      <form method="dialog"><button>Close</button></form>
+    </div>
+    <p class="row-form"><span class="muted">Looking in:</span> <span id="libFolders"></span> <button id="libAdd">Add folder…</button></p>
+    <p class="row-form"><label class="muted"><input type="checkbox" id="libAnalyzed"> Only analyzed games</label> <span id="libCount" class="muted"></span></p>
+    <div id="libGrid" class="lib-grid"></div>
+  </dialog>
+  <dialog id="gameDataDialog" class="game-data-dialog">
+    <div class="dialog-head">
+      <h2>Game data</h2>
+      <form method="dialog"><button>Close</button></form>
+    </div>
+    <p id="gdIntro" class="muted"></p>
+    <div id="gdUpdate" class="gd-update" hidden>
+      <span id="gdUpdateText"></span>
+      <button id="gdUpdateBtn">Update analysis</button>
+    </div>
+    <section id="gdTeams"></section>
+    <section id="gdGoals"></section>
+    <section id="gdPlayersSec" hidden>
+      <h3>Players</h3>
+      <p class="muted">Counted while Hockey AI could read the player's number, so ice time and shifts are at least these. Distance and speed are reliable.</p>
+      <p class="row-form"><label class="muted"><input type="checkbox" id="gdUnnamed"> Include unnamed tracks</label> <label class="muted">Period <select id="gdPeriod"><option value="">Whole game</option></select></label></p>
+      <div class="gd-scroll"><table class="gd-table" id="gdPlayers"></table></div>
+    </section>
+  </dialog>
   <script src="api.js"></script>
   <script src="youtube.js"></script>
   <script src="teams.js"></script>
@@ -294,6 +324,8 @@
   <script src="chapters.js"></script>
   <script src="autocut.js"></script>
   <script src="follow.js"></script>
+  <script src="library.js"></script>
+  <script src="gamedata.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

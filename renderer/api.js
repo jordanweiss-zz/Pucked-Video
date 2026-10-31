@@ -50,6 +50,12 @@
       lastDir = info.path.replace(/[\\/][^\\/]*$/, '');
       return info;
     },
+    // Open a game the library listed, without a file dialog.
+    async openVideoPath(file) {
+      const info = await call('video:info', file);
+      if (info) lastDir = info.path.replace(/[\\/][^\\/]*$/, '');
+      return info;
+    },
     listSports: () => call('sports:list'),
     loadTags: (key) => call('tags:load', key),
     saveTags: (key, data) => call('tags:save', key, data),
@@ -96,5 +102,9 @@
     cancelAutoCut: () => call('autocut:cancel'),
     onAutoCutProgress: (fn) => on('autocut:progress', fn),
     checkFfmpeg: () => call('ffmpeg:check'),
+    scanLibrary: (folders) => call('library:scan', folders),
+    libraryThumb: (file) => call('library:thumb', file),
+    aiGameData: (video) => call('ai:data', video),
+    updateAnalysis: (hai, video) => call('ai:update', hai, video),
   };
 })();

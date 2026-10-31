@@ -168,12 +168,13 @@ const Analyze = {
     const was = this.job?.state;
     this.job = job;
     this.renderBadge();
-    if (was === 'running' && job.state === 'done' && job.kind === 'analyze' && job.video === current?.path) {
+    if (was === 'running' && job.state === 'done' && (job.kind === 'analyze' || job.kind === 'derive') && job.video === current?.path) {
       const res = await this.importFinished();
       if (res && !$('analyzeDialog').open) alert(`Hockey AI finished. ${res.added ? `It added ${this.plays(res.added)} for you to review.` : 'It found no new plays.'}`);
     }
     if (job.state !== 'running' && this.isLocalGame()) await this.refreshStatus();
     if ($('analyzeDialog').open && this.status) this.render();
+    GameData.onJob(job);
   },
 
   wire() {

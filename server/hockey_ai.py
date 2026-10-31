@@ -11,7 +11,7 @@ import re
 import subprocess
 from pathlib import Path
 
-from . import core, jobs
+from . import core, jobs, library
 from .config import NO_WINDOW, files_url, mtime_ms, read_json, write_json
 
 
@@ -50,6 +50,8 @@ def game_files(video: str) -> dict:
         'pdf': f'{base}_postgame.pdf',
         'html': f'{base}_postgame.html',
         'checkpoint': f'{base}_checkpoint.json',  # left by a step that stopped partway, so it can resume
+        'manifest': f'{base}_manifest.json',  # what's saved and what can be re-derived (contract v2, 8e)
+        'shifts': f'{base}_shifts.json',  # per-team and per-player skating numbers (contract v2, 8d)
     }
 
 
@@ -139,6 +141,36 @@ def game_status(hai, video):
         'teams': _report_teams(f['report']),
         'checkpoint': checkpoint_of(f),
         'overlays': calib_overlays(f),
+        'hasData': exists(f['shifts']),
+        'update': library.ai_update(_safe_json(f['manifest'])),
+    }
+
+
+def _safe_json(file):
+    try:
+        return read_json(file, None)
+    except (ValueError, OSError):
+        return None
+
+
+def game_data(video):
+    """Everything a past analyzed game has saved, for the Game data screen. Nothing is re-run."""
+    f = game_files(video)
+    export = _safe_json(f['exportFile']) or {}
+    goals = [e for e in export.get('events') or [] if e.get('type') == 'goal']
+    counts: dict = {}
+    for e in export.get('events') or []:
+        team = e.get('team') or 'unknown'
+        counts.setdefault(e.get('type'), {}).setdefault(team, 0)
+        counts[e.get('type')][team] += 1
+    return {
+        'analyzed': exists(f['report']),
+        'teams': _report_teams(f['report']),
+        'shifts': _safe_json(f['shifts']),
+        'goals': goals,
+        'eventCounts': counts,
+        'players': _safe_json(f['players']),
+        'update': library.ai_update(_safe_json(f['manifest'])),
     }
 
 
@@ -203,9 +235,17 @@ def report_steps(f, opts):
     return [{'id': 'report', 'label': 'Make the post-game report', 'weight': 1, 'args': lambda: args}]
 
 
+def derive_steps(f):
+    """Bring a past game's results up to date from what the first pass saved: CPU only, no new analysis."""
+    return [{'id': 'derive', 'label': 'Update the numbers from the saved analysis', 'weight': 0.05,
+             'args': lambda: ['scripts/derive.py', f['base'], '--steps', 'all', '--if-stale']}]
+
+
 def steps_for(spec):
     """The steps of a job from its saved description; the job runner calls this in its own process."""
     f = game_files(spec['video'])
+    if spec['kind'] == 'derive':
+        return derive_steps(f)
     if spec['kind'] == 'analyze':
         return analyze_steps(f, 0, spec['opts'].get('fresh', False), spec['opts'].get('render', False))
     return report_steps(f, spec['opts'])
@@ -292,6 +332,20 @@ def report(hai, video, opts=None):
         return {'ok': False, 'error': problem}
     write_events(hai, f['events'])
     jobs.start(hai, 'report', video, opts)
+    return {'ok': True}
+
+
+def update(hai, video):
+    """Re-derive a past game's numbers with the current Hockey AI and play settings, without the graphics card."""
+    f = game_files(video)
+    problem = (check_ready(hai)
+               or (None if exists(f['report']) else 'Analyze the game first.')
+               or (None if (Path(hai) / 'scripts' / 'derive.py').exists() else
+                   'This Hockey AI is too old to update past games. Get the latest Hockey AI, then try again.'))
+    if problem:
+        return {'ok': False, 'error': problem}
+    write_events(hai, f['events'])
+    jobs.start(hai, 'derive', video, {})
     return {'ok': True}
 
 

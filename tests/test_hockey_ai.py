@@ -36,7 +36,21 @@ elif NAME == 'filter':
     write(args[0] + '_events_export.json', {'schema_version': 1, 'events': []})
 elif NAME == 'report':
     open(args[0] + '_postgame.pdf', 'w').write('%PDF')
+elif NAME == 'derive':
+    assert args[1:] == ['--steps', 'all', '--if-stale'], args
+    write(args[0] + '_shifts.json', SHIFTS)
+    write(args[0] + '_manifest.json', {'schema_version': 1, 'can_derive': ['shifts'], 'needs_gpu': False,
+                                       'outputs': {'shifts': {'stale': False, 'exists': True}}})
 '''
+
+SHIFTS = {
+    'schema_version': 1, 'start_offset': 0,
+    'teams': {'team_a': {'observed_s': 100, 'distance_ft': 5280, 'sprints': 3}, 'team_b': {'observed_s': 90, 'distance_ft': 2640, 'sprints': 1}},
+    'players': {'A09': {'team': 'team_a', 'number': '9', 'shifts': [
+        {'period': 1, 'start_s': 10, 'end_s': 50, 'duration_s': 40, 'distance_ft': 400, 'top_speed_mph': 15.5, 'avg_speed_mph': 7,
+         'sprints': 1, 'zones_s': {'offensive': 30, 'neutral': 10}}]},
+        'B-T8': {'team': 'team_b', 'number': None, 'shifts': []}},
+}
 
 
 @pytest.fixture
@@ -46,8 +60,9 @@ def hai(tmp_path):
     (d / 'config' / 'events.json').write_text(json.dumps({'goal': {'on': True}}))
     (d / 'scripts').mkdir()
     for name, file in [('calibrate', 'scripts/calibrate_xbotgo.py'), ('analyze', 'main.py'), ('players', 'scripts/name_players.py'),
-                       ('filter', 'scripts/filter_events.py'), ('report', 'scripts/game_report.py')]:
-        (d / file).write_text(f'NAME = {name!r}\n{TOOL}')
+                       ('filter', 'scripts/filter_events.py'), ('report', 'scripts/game_report.py'),
+                       ('derive', 'scripts/derive.py')]:
+        (d / file).write_text(f'NAME = {name!r}\nSHIFTS = {SHIFTS!r}\n{TOOL}')
     (d / '.venv' / 'bin').mkdir(parents=True)
     os.symlink(sys.executable, d / '.venv' / 'bin' / 'python')
     return d
@@ -172,3 +187,38 @@ def test_refilter_and_players(api, hai, xgame, tmp_path):
     assert run['base'] == base and run['thumbBase'].startswith('/files/') and run['thumbBase'].endswith('/run/')
     api('ai:players:save', base, {'players': [{'id': 1}]})
     assert api('ai:run:load', f'{base}_events_export.json')['players'] == {'players': [{'id': 1}]}
+
+
+def test_past_game_data_and_update_without_the_gpu(api, hai, xgame):
+    base = xgame.parent / 'game_analysis' / 'game'
+    assert api('ai:update', str(hai), str(xgame))['error'] == 'Analyze the game first.'
+    base.parent.mkdir()
+    Path(f'{base}_report.json').write_text(json.dumps({'summary': {'teams': {'team_a': 'Black', 'team_b': 'White'}}}))
+    Path(f'{base}_events_export.json').write_text(json.dumps({'schema_version': 1, 'events': [
+        {'time_s': 30, 'type': 'goal', 'team': 'team_a', 'window_start_s': 25},
+        {'time_s': 40, 'type': 'zone_entry', 'team': 'team_b'}]}))
+    Path(f'{base}_manifest.json').write_text(json.dumps({'schema_version': 1, 'can_derive': ['shifts', 'goals'], 'needs_gpu': False,
+                                                         'outputs': {'shifts': {'stale': True}, 'goals': {'stale': False},
+                                                                     'report': {'stale': True}}}))
+    d = api('ai:data', str(xgame))
+    assert d['analyzed'] and d['shifts'] is None and d['teams']['team_a'] == 'Black'
+    assert [g['time_s'] for g in d['goals']] == [30]
+    assert d['eventCounts'] == {'goal': {'team_a': 1}, 'zone_entry': {'team_b': 1}}
+    # Only outputs Hockey AI can derive count as updatable.
+    assert d['update'] == {'stale': ['shifts'], 'canUpdate': True, 'needsGpu': False}
+    assert api('ai:game', str(hai), str(xgame))['update']['canUpdate']
+
+    assert api('ai:update', str(hai), str(xgame)) == {'ok': True}
+    job = wait_until(lambda j: j['state'] != 'running')
+    assert job['state'] == 'done' and job['kind'] == 'derive', job
+    d = api('ai:data', str(xgame))
+    assert d['shifts']['players']['A09']['shifts'][0]['top_speed_mph'] == 15.5
+    assert d['update']['canUpdate'] is False
+
+
+def test_update_needs_a_new_enough_hockey_ai(api, hai, xgame):
+    (hai / 'scripts' / 'derive.py').unlink()
+    base = xgame.parent / 'game_analysis' / 'game'
+    base.parent.mkdir()
+    Path(f'{base}_report.json').write_text('{}')
+    assert 'too old' in api('ai:update', str(hai), str(xgame))['error']
