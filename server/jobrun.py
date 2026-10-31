@@ -126,6 +126,7 @@ class Runner:
         if job['state'] == 'running':
             job['state'] = 'done'
             out = finished_output(spec)
+            job['out'] = out  # what the run made, for its notice
         job['finishedAt'] = now_ms()
         self.save(True)
         if out:

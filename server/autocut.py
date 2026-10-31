@@ -14,7 +14,7 @@ from pathlib import Path
 
 import numpy as np
 
-from . import events, ffmpeg
+from . import events, ffmpeg, notices
 from .config import FFMPEG, NO_WINDOW
 
 # --- Camera movement from the XBotGo .track log ---
@@ -197,6 +197,7 @@ _lock = threading.Lock()
 
 def send(state) -> None:
     events.send('autocut:progress', state)
+    notices.progress('autocut', state.get('pct'))
 
 
 def _start():
@@ -217,13 +218,18 @@ def scan(video: str):
     job = _start()
     if not job:
         return {'ok': False, 'error': 'Already working on it.'}
+    notices.begin('autocut', 'Auto-Cut: finding the dead time', Path(video).name)
     try:
         sound = scan_sound(video, lambda f: send({'state': 'scanning', 'pct': f * 100}), job)
-        return {'ok': True, 'whistles': find_whistles(sound), 'duration': sound['duration'],
-                'silent': bool(sound.get('silent')), 'motion': track_motion(video)}
+        found = {'ok': True, 'whistles': find_whistles(sound), 'duration': sound['duration'],
+                 'silent': bool(sound.get('silent')), 'motion': track_motion(video)}
+        notices.finish('autocut', 'done', 'Ready to look over in Auto-Cut.')
+        return found
     except ffmpeg.Cancelled:
+        notices.finish('autocut', 'cancelled')
         return {'ok': False, 'cancelled': True}
     except Exception as e:
+        notices.finish('autocut', 'failed', str(e))
         return {'ok': False, 'error': str(e)}
     finally:
         _finish()
@@ -233,12 +239,16 @@ def save(opts):
     job = _start()
     if not job:
         return {'ok': False, 'error': 'Already working on it.'}
+    notices.begin('autocut', 'Saving the game without dead time', Path(opts['out']).name)
     try:
         _save_condensed(job, opts['video'], opts['keep'], opts['out'])
+        notices.finish('autocut', 'done', file=opts['out'])
         return {'ok': True}
     except ffmpeg.Cancelled:
+        notices.finish('autocut', 'cancelled')
         return {'ok': False, 'cancelled': True}
     except Exception as e:
+        notices.finish('autocut', 'failed', str(e))
         return {'ok': False, 'error': str(e)}
     finally:
         _finish()

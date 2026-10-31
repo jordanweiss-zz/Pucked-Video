@@ -8,4 +8,6 @@ contextBridge.exposeInMainWorld('native', {
   openPath: (file) => ipcRenderer.invoke('native:open-path', file),
   showItem: (file) => ipcRenderer.invoke('native:show-item', file),
   openExternal: (url) => ipcRenderer.invoke('native:open-external', url),
+  // Clicking a desktop notice brings the window to the front.
+  focusWindow: () => ipcRenderer.invoke('native:focus'),
 });

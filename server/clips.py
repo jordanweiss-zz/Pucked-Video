@@ -9,7 +9,7 @@ import tempfile
 import threading
 from pathlib import Path
 
-from . import events, ffmpeg
+from . import events, ffmpeg, notices
 
 # Hardware H.264 encoders to try first (AMD, Apple, NVIDIA, Intel), then the CPU one, which always works.
 ENCODERS = [
@@ -43,6 +43,7 @@ _job: ffmpeg.Job | None = None
 
 def send(state) -> None:
     events.send('clips:progress', state)
+    notices.from_progress('clips', state, file=state.get('out'))
 
 
 # Where the logo sits, `m` pixels in from the edges.
@@ -189,6 +190,8 @@ def export_clips(opts):
     if _job:
         return {'ok': False, 'error': 'A clip is already being saved. Wait for it to finish.'}
     _job = ffmpeg.Job()
+    n = len(opts['clips'])
+    notices.begin('clips', 'Saving a reel of {} clips'.format(n) if n > 1 else 'Saving a clip', Path(opts['out']).name)
     threading.Thread(target=_export, args=(_job, opts['video'], opts['clips'], opts['out'], opts.get('look') or {}),
                      daemon=True).start()
     return {'ok': True}

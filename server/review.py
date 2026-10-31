@@ -15,7 +15,7 @@ import tempfile
 import threading
 from pathlib import Path
 
-from . import clips, events, ffmpeg
+from . import clips, events, ffmpeg, notices
 from .config import FFMPEG, NO_WINDOW
 
 _job: ffmpeg.Job | None = None
@@ -26,6 +26,7 @@ MAX_SECONDS = 20 * 60
 
 def send(state) -> None:
     events.send('review:progress', state)
+    notices.from_progress('review', state, file=state.get('out'))
 
 
 def has_audio(video: str) -> bool:
@@ -163,6 +164,7 @@ def export_review(opts):
     if _job:
         return {'ok': False, 'error': 'A review clip is already being saved. Wait for it to finish.'}
     _job = ffmpeg.Job()
+    notices.begin('review', 'Saving a review clip', Path(opts['out']).name)
     threading.Thread(target=_export, args=(_job, opts), daemon=True).start()
     return {'ok': True}
 

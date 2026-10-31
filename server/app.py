@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Streamin
 from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 
-from . import autocut, clips, core, events, hockey_ai, jobs, library, review, youtube
+from . import autocut, clips, core, events, hockey_ai, jobs, library, notices, review, youtube
 from .config import APP_DIR, path_from_url
 
 # name the screens call -> function. Arguments arrive in the same order as the old window.api.
@@ -61,6 +61,10 @@ CALLS = {
     'ai:data': hockey_ai.game_data,
     'ai:update': hockey_ai.update,
     'ai:teams:save': hockey_ai.save_game_teams,
+    'notices:list': notices.list_notices,
+    'notices:read': notices.mark_read,
+    'notices:clear': notices.clear,
+    'notices:dismiss': notices.dismiss,
 }
 
 LOCAL_HOSTS = {'127.0.0.1', 'localhost', '[::1]'}

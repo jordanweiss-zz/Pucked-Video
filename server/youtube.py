@@ -18,7 +18,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-from . import events
+from . import events, notices
 from .config import DATA_DIR, read_json, write_json
 
 AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
@@ -177,6 +177,7 @@ def access_token() -> str:
 
 def send(state) -> None:
     events.send('youtube:progress', state)
+    notices.from_progress('youtube', state, url=state.get('url'))
 
 
 def _request(url, method, headers, data=None):
@@ -264,6 +265,7 @@ def upload(opts):
         return {'ok': False, 'error': 'Connect YouTube first.'}
     privacy = opts.get('privacy') if opts.get('privacy') in PRIVACY else 'unlisted'
     _upload = {'cancelled': False}
+    notices.begin('youtube', 'Uploading to YouTube', opts.get('title') or Path(opts['file']).name)
     threading.Thread(target=_upload_file, args=(_upload, opts['file'], opts.get('title') or '', opts.get('description') or '', privacy),
                      daemon=True).start()
     return {'ok': True}

@@ -41,6 +41,7 @@ async function init() {
   Review.wire();
   Library.wire();
   GameData.wire();
+  await Notices.wire();
   await Teams.load();
   Teams.onChange = () => { renderTeamSelect(); renderPlayers(); renderTags(); };
   Teams.wire();
