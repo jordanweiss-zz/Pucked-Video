@@ -5,15 +5,16 @@ renderer/api.js can offer the same window.api the Electron version had."""
 from __future__ import annotations
 
 import asyncio
+import html
 import inspect
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 
-from . import autocut, clips, core, events, hockey_ai, jobs
+from . import autocut, clips, core, events, hockey_ai, jobs, review, youtube
 from .config import APP_DIR, path_from_url
 
 # name the screens call -> function. Arguments arrive in the same order as the old window.api.
@@ -47,6 +48,14 @@ CALLS = {
     'autocut:scan': autocut.scan,
     'autocut:save': autocut.save,
     'autocut:cancel': autocut.cancel,
+    'review:export': review.export_review,
+    'review:cancel': review.cancel,
+    'youtube:status': youtube.status,
+    'youtube:setup': youtube.setup,
+    'youtube:connect': youtube.connect,
+    'youtube:disconnect': youtube.disconnect,
+    'youtube:upload': youtube.upload,
+    'youtube:cancel': youtube.cancel_upload,
 }
 
 LOCAL_HOSTS = {'127.0.0.1', 'localhost', '[::1]'}
@@ -102,6 +111,17 @@ async def call(name: str, request: Request):
 async def stream_events():
     return StreamingResponse(events.stream(), media_type='text/event-stream',
                              headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
+
+
+@app.get('/api/youtube/callback')
+def youtube_callback(state: str = '', code: str = '', error: str = ''):
+    """Google sends the browser here after the user signs in to connect YouTube."""
+    ok, message = youtube.finish_sign_in(state, code, error)
+    colour = '#1a7f37' if ok else '#b42318'
+    page = (f'<!doctype html><meta charset="utf-8"><title>Pucked Video</title>'
+            f'<body style="font:16px system-ui;margin:48px;color:#222"><h2>Pucked Video</h2>'
+            f'<p style="color:{colour}">{html.escape(message)}</p></body>')
+    return HTMLResponse(page, status_code=200 if ok else 400)
 
 
 @app.get('/files/{path:path}')

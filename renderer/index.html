@@ -34,6 +34,7 @@
           <button id="drawUndo" title="Undo the last mark">Undo</button>
           <button id="drawClear" title="Remove the drawing on this frame">Clear</button>
           <button id="drawSave" title="Save this frame with the drawing as a picture">Save picture</button>
+          <label class="draw-pause" title="Saved clips and reels stop on this frame with the drawing for this long">Clips pause here <select id="drawPause"><option value="0">don't pause</option><option value="2">2 s</option><option value="3">3 s</option><option value="5">5 s</option><option value="8">8 s</option></select></label>
           <button id="drawDone">Done</button>
         </div>
         <svg id="cropLayer" class="crop-layer" hidden></svg>
@@ -56,6 +57,7 @@
           <div id="clipBand" class="clip-band" hidden><i data-edge="start"></i><i data-edge="end"></i></div>
         </div>
         <button id="drawBtn" title="Draw on the video (D)">✎ Draw</button>
+        <button id="revBtn" title="Record a review clip: play, pause, draw and talk">🎙 Review</button>
         <select id="speed" title="Playback speed">
           <option value="0.25">0.25×</option><option value="0.5">0.5×</option>
           <option value="1" selected>1×</option><option value="1.5">1.5×</option><option value="2">2×</option>
@@ -69,6 +71,13 @@
         <button id="followSave" title="Save all of this player's stretches as one video">Save as reel…</button>
         <span id="followInfo" class="muted"></span>
         <button id="followClose" class="x" title="Stop following">×</button>
+      </div>
+      <div id="revBar" class="follow-bar rev-bar" hidden>
+        <button id="revRec">● Record</button>
+        <span id="revTime" class="rev-time"></span>
+        <span class="rev-meter" title="Microphone level"><i id="revLevel"></i></span>
+        <span id="revHint" class="muted"></span>
+        <button id="revClose" class="x" title="Close (Esc)">×</button>
       </div>
       <div id="tagButtons" class="tag-buttons"></div>
       <div class="player-bar">
@@ -224,6 +233,7 @@
       <option value="300" data-short="5 min">The best 5 minutes</option></select></label></p>
     <p><label><input type="checkbox" id="reelSuggested"> Include AI plays you haven't reviewed yet</label></p>
     <p><label><input type="checkbox" id="reelOverlay" checked> Show the play and player at the start of each clip</label></p>
+    <p class="row-form"><label>On frames you drew on, pause <select id="reelDrawPause"><option value="0">don't pause</option><option value="2">2 s</option><option value="3">3 s</option><option value="5">5 s</option><option value="8">8 s</option></select> to show the drawing</label></p>
     <p class="row-form"><label><input type="radio" name="reelShape" id="reelWide" checked> Wide (16:9)</label>
       <label><input type="radio" name="reelShape" id="reelVertical"> Vertical (9:16) for phones</label></p>
     <p id="reelSoft" class="muted" hidden>This game is 1080p, so vertical clips use a 608-pixel-wide slice and look a little soft. Use <b>Frame 9:16</b> under a tag to choose which part of the picture it shows.</p>
@@ -242,6 +252,69 @@
     </div>
     <p id="reelSummary" class="muted"></p>
     <p class="row-form"><button id="reelSave">Save reel…</button></p>
+  </dialog>
+  <dialog id="revDialog" class="reel-dialog">
+    <div class="dialog-head">
+      <h2>Your review clip</h2>
+      <form method="dialog"><button>Close</button></form>
+    </div>
+    <p id="revSummary" class="muted"></p>
+    <p class="row-form"><input id="revTitle" placeholder="Title"></p>
+    <p class="row-form"><textarea id="revDesc" rows="3" placeholder="Notes for the player (also used as the YouTube description)"></textarea></p>
+    <p class="row-form"><label>Game sound under your voice <select id="revGame">
+      <option value="0">Off</option><option value="0.25">Quiet</option><option value="0.5">Half</option><option value="1">Full</option></select></label></p>
+    <p class="row-form"><button id="revSave">Save video…</button> <button id="revAgain">Record again</button></p>
+    <div id="revProgress" hidden>
+      <div class="an-bar"><div id="revBar2"></div></div>
+      <p class="row-form"><span id="revStatus"></span> <button id="revCancel">Cancel</button> <button id="revShow" hidden>Show in folder</button></p>
+    </div>
+    <section id="revShare" hidden>
+      <h3>Share on YouTube</h3>
+      <p id="revYtNote" class="muted"></p>
+      <p class="row-form"><button id="revYtSetup">Set up YouTube…</button></p>
+      <div id="revYtForm" hidden>
+        <p class="row-form"><label>Who can watch <select id="revPrivacy">
+          <option value="unlisted">Unlisted: anyone with the link</option>
+          <option value="private">Private: only you</option>
+          <option value="public">Public: anyone</option></select></label>
+          <button id="revYtUpload">Upload to YouTube</button></p>
+      </div>
+      <div id="revYtProgress" hidden>
+        <div class="an-bar"><div id="revYtBar"></div></div>
+        <p class="row-form"><span id="revYtStatus"></span> <button id="revYtCancel" hidden>Cancel</button></p>
+        <div id="revYtDone" hidden>
+          <p class="row-form"><input id="revYtLink" readonly> <button id="revYtCopy">Copy link</button> <button id="revYtOpen">Open</button></p>
+          <p id="revYtPrivacy" class="muted"></p>
+        </div>
+      </div>
+      <p class="muted"><button id="revYtSelf" class="link">Upload it myself in YouTube Studio</button> opens YouTube and shows the video in its folder.</p>
+    </section>
+  </dialog>
+  <dialog id="ytDialog" class="reel-dialog yt-setup">
+    <div class="dialog-head">
+      <h2>Set up YouTube uploads</h2>
+      <form method="dialog"><button>Close</button></form>
+    </div>
+    <p class="muted">Google asks every app that uploads to have its own free "client". You make it once, in your own Google account. It takes about 10 minutes.</p>
+    <ol class="yt-steps">
+      <li><a href="https://console.cloud.google.com/projectcreate">Make a Google Cloud project</a>. Call it Pucked Video.</li>
+      <li><a href="https://console.cloud.google.com/apis/library/youtube.googleapis.com">Turn on the YouTube Data API v3</a> and press <b>Enable</b>.</li>
+      <li><a href="https://console.cloud.google.com/auth/overview">Set up Google Auth</a>: press <b>Get started</b>, App name Pucked Video, your email, Audience <b>External</b>. Then under <b>Audience</b>, press <b>Publish app</b> (otherwise Google signs you out every 7 days). It's fine that Google hasn't verified it.</li>
+      <li><a href="https://console.cloud.google.com/auth/clients">Make a client</a>: <b>Create client</b>, Application type <b>Desktop app</b>, then <b>Download JSON</b>.</li>
+      <li>Give that file to Pucked Video and connect your channel:
+        <p class="row-form"><button id="ytFile">Choose the downloaded file…</button> <span id="ytClientState" class="muted"></span></p>
+        <details><summary class="muted">Or paste the Client ID and secret</summary>
+          <p class="row-form"><input id="ytId" placeholder="Client ID (….apps.googleusercontent.com)"></p>
+          <p class="row-form"><input id="ytSecret" placeholder="Client secret"> <button id="ytPaste">Use these</button></p>
+        </details>
+        <p class="row-form"><button id="ytConnect">Connect YouTube</button> <button id="ytDisconnect" hidden>Disconnect</button></p>
+        <p id="ytState" class="muted"></p>
+        <p class="muted">Google will warn that it hasn't verified the app. It's your own app: press <b>Advanced</b>, then <b>Go to Pucked Video</b>, and allow it to upload videos.</p>
+      </li>
+      <li>Unlisted links: Google keeps videos uploaded by a new project <b>private</b> until the project passes its free review.
+        <a href="https://support.google.com/youtube/contact/yt_api_form">Ask Google to review it</a> (pick "I want to request an audit"); it can take a few weeks.
+        Until then, uploads are private, and <b>Upload it myself in YouTube Studio</b> lets you pick Unlisted by hand.</li>
+    </ol>
   </dialog>
   <dialog id="analyzeDialog" class="analyze-dialog">
     <div class="dialog-head">
@@ -294,6 +367,7 @@
   <script src="chapters.js"></script>
   <script src="autocut.js"></script>
   <script src="follow.js"></script>
+  <script src="review.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

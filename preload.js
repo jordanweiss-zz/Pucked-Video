@@ -7,4 +7,5 @@ contextBridge.exposeInMainWorld('native', {
   saveFile: (opts) => ipcRenderer.invoke('native:save-file', opts),
   openPath: (file) => ipcRenderer.invoke('native:open-path', file),
   showItem: (file) => ipcRenderer.invoke('native:show-item', file),
+  openExternal: (url) => ipcRenderer.invoke('native:open-external', url),
 });

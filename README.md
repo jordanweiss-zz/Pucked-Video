@@ -37,7 +37,7 @@ Hockey AI runs are their own process, so closing or updating the app doesn't sto
 - One-key tagging (G = Goal, S = Shot, and so on), with a tag list you can click to jump to a play. Tags are saved next to the video as `<video>.tags.json`.
 - XBotGo highlight-button presses are imported as Highlight tags.
 - **Teams & rosters**, so a tag can say which player it's about (type the jersey number after tagging).
-- **Draw** (D) on a paused frame with arrows, lines, circles and a pen, then **Save picture** to share it.
+- **Draw** (D) on a paused frame with arrows, lines, circles and a pen, then **Save picture** to share it. Saved clips and reels stop on every frame you drew on for a few seconds (**Clips pause here**, in the draw bar and the reel dialog) so the drawing shows in the video.
 
 ### Clips and reels
 - Click any play or AI event to watch it. Its clip shows as a band on the timeline: drag either end, use **Start here** / **End here** (I and O), or type up to 2 minutes either side, then **Save clip** as an MP4.
@@ -47,6 +47,8 @@ Hockey AI runs are their own process, so closing or updating the app doesn't sto
 - **Auto highlights** builds a reel of the best 1, 2, 3 or 5 minutes from your tags, XBotGo clicks and AI plays. Goals come first, then plays with a player, plays close together, and plays where the camera was swinging.
 - **Auto-Cut** finds the stoppages by listening for the referee's whistle and reading the XBotGo camera log. It shades them on the timeline, can skip them while you watch, and saves a condensed game with no re-encoding, so it takes about a minute. Tagged plays are never cut.
 - **Follow a player**: pick anyone on your roster, or anyone Hockey AI tracked, and step through every stretch of the game they were in (Prev/Next, or `[` and `]`). You can play only their stretches back to back, or save them as one video.
+- **🎙 Review** records you coaching a play: press Record, then play, pause, slow it down, step frames and draw while you talk. The video comes out the way you showed it, with your drawings, your voice and the game's sound turned down underneath (Off, Quiet, Half or Full). Start it from any tag or AI play (the 🎙 Review button under its clip) or from where the video is. It saves as an MP4, and can upload straight to your YouTube channel as Unlisted (anyone with the link), Private or Public.
+- **YouTube uploads** need a free Google Cloud "Desktop app" client, made once in your own Google account. **Set up YouTube** walks through it with links, then you pick the file Google gives you and press **Connect YouTube**. Google keeps uploads from a new project private until it passes Google's free review; until then **Upload it myself in YouTube Studio** lets you choose Unlisted by hand.
 - **YouTube chapters** made from your tags, ready to paste into a video description.
 - Encoding uses the graphics card when it can (AMD, Apple, NVIDIA or Intel), and the bundled ffmpeg otherwise.
 
