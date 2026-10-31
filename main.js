@@ -149,6 +149,8 @@ ipcMain.handle('native:save-file', async (e, { title, filters, defaultPath } = {
 
 ipcMain.handle('native:open-path', (_e, file) => shell.openPath(file));
 ipcMain.handle('native:show-item', (_e, file) => shell.showItemInFolder(file));
+// Web pages (Google sign-in, YouTube) open in the computer's own browser. Only https links.
+ipcMain.handle('native:open-external', (_e, url) => (/^https:\/\//.test(String(url)) ? shell.openExternal(url) : false));
 
 // YouTube refuses to embed without a Referer (player error 153), so make sure its requests have one.
 function allowYouTubeEmbeds() {

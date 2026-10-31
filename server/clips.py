@@ -54,13 +54,11 @@ CORNERS = {
 }
 
 
-def clip_filters(clip, look) -> str:
+def clip_filters(clip, look, v='[0:v]', nxt=1, pre=()) -> str:
     """The filter graph for one clip: an optional 9:16 crop, the team logo, then the play name.
     The play name is drawn by the app as a picture (not every ffmpeg build can draw text) and laid over
-    the first 4 seconds of the clip."""
-    parts = []
-    v = '[0:v]'
-    nxt = 1
+    the first 4 seconds of the clip. `pre` are filters that make the picture `v` first (a held frame)."""
+    parts = list(pre)
     if look.get('vertical'):
         # cropX picks where the 9:16 window sits across the picture, 0 = left edge, 1 = right edge.
         crop_x = clip.get('cropX')
@@ -77,7 +75,9 @@ def clip_filters(clip, look) -> str:
     if clip.get('overlay'):
         parts.append(f"{v}[{nxt}:v]overlay=x=H/30:y=H-h-H/30:enable='lt(t,4)'[t]")
         v = '[t]'
-    parts.append(f'{v}format=yuv420p[v]')
+    # One frame rate for every piece, so plays and held frames join cleanly.
+    rate = f"fps={int(look['fps'])}," if look.get('fps') else ''
+    parts.append(f'{v}{rate}format=yuv420p[v]')
     return ';'.join(parts)
 
 
@@ -92,8 +92,44 @@ def encode_clip(job, cwd, video, clip, out, look, on_progress) -> None:
         inputs += ['-i', label]
     args = ['-hide_banner', '-y', *inputs, '-t', f'{dur:.3f}', '-filter_complex', clip_filters(clip, look), '-map', '[v]',
             '-map', '0:a:0?', *_encoder['args'], '-c:a', 'aac', '-b:a', '160k', '-ar', '48000', '-ac', '2',
-            '-movflags', '+faststart', '-progress', 'pipe:1', '-nostats', out]
+            '-movflags', '+faststart', '-video_track_timescale', '90000', '-progress', 'pipe:1', '-nostats', out]
     ffmpeg.run_with_progress(job, args, cwd, lambda s: on_progress(min(1.0, s / dur)))
+
+
+def encode_hold(job, cwd, video, hold, out, look, on_progress) -> None:
+    """A frame the user drew on, held still for a few seconds with the drawing over it, in the same look
+    as the clip around it so they join without encoding again."""
+    secs, fps = float(hold['secs']), int(look.get('fps') or 30)
+    png = f"hold{hold['i']}.png"
+    Path(cwd, png).write_bytes(base64.b64decode(hold['drawing']))
+    inputs = ['-ss', f"{hold['at']:.3f}", '-i', video, '-i', png]
+    if look.get('logo'):
+        inputs += ['-i', look['logo']['file']]
+    inputs += ['-f', 'lavfi', '-t', f'{secs:.3f}', '-i', 'anullsrc=r=48000:cl=stereo']
+    silence = 3 if look.get('logo') else 2
+    pre = ['[0:v]trim=end_frame=1,setpts=PTS-STARTPTS[f0]',
+           f'[f0][1:v]overlay,tpad=stop_mode=clone:stop_duration={secs:.3f},fps={fps}[held]']
+    graph = clip_filters({'cropX': hold.get('cropX')}, look, v='[held]', nxt=2, pre=pre)
+    args = ['-hide_banner', '-y', *inputs, '-filter_complex', graph, '-map', '[v]', '-map', f'{silence}:a',
+            '-t', f'{secs:.3f}', *_encoder['args'], '-c:a', 'aac', '-b:a', '160k', '-ar', '48000', '-ac', '2',
+            '-movflags', '+faststart', '-video_track_timescale', '90000', '-progress', 'pipe:1', '-nostats', out]
+    ffmpeg.run_with_progress(job, args, cwd, lambda s: on_progress(min(1.0, s / secs)))
+
+
+def pieces(clip):
+    """A clip with drawings in it, split where it pauses on each drawn frame:
+    [('play', {start, end}), ('hold', {at, secs, drawing}), ('play', ...), ...]."""
+    out, t = [], clip['start']
+    for h in sorted(clip.get('holds') or [], key=lambda h: h['at']):
+        if not clip['start'] <= h['at'] < clip['end']:
+            continue
+        if h['at'] - t > 0.05:
+            out.append(('play', {'start': t, 'end': h['at']}))
+        out.append(('hold', h))
+        t = h['at']
+    if clip['end'] - t > 0.05 or not out:
+        out.append(('play', {'start': t, 'end': clip['end']}))
+    return out
 
 
 def join_clips(cwd, files, out) -> None:
@@ -110,21 +146,30 @@ def _export(job, video, clips, out, look) -> None:
     cwd = tempfile.mkdtemp(prefix='pucked-clips-')
     try:
         pick_encoder()
-        total = sum(c['end'] - c['start'] for c in clips) or 1
+        # Every play and held frame is encoded on its own, then they're all joined without encoding again.
+        parts = []
+        for i, clip in enumerate(clips):
+            for j, (kind, p) in enumerate(pieces(clip)):
+                parts.append((i, kind, {**clip, **p, 'overlay': clip.get('overlay') if j == 0 else None, 'holds': None}))
+        length = lambda kind, p: float(p['secs']) if kind == 'hold' else p['end'] - p['start']  # noqa: E731
+        total = sum(length(k, p) for _, k, p in parts) or 1
         done_sec = 0.0
         files = []
-        for i, clip in enumerate(clips):
-            file = out if len(clips) == 1 else str(Path(cwd, f'clip{i}.mp4'))
-            length = clip['end'] - clip['start']
+        for n, (i, kind, p) in enumerate(parts):
+            file = out if len(parts) == 1 else str(Path(cwd, f'part{n}.mp4'))
+            size = length(kind, p)
 
-            def progress(f, i=i, length=length, done=done_sec):
-                send({'state': 'running', 'pct': (done + f * length) / total * 100, 'clip': i + 1,
+            def progress(f, i=i, size=size, done=done_sec):
+                send({'state': 'running', 'pct': (done + f * size) / total * 100, 'clip': i + 1,
                       'clips': len(clips), 'encoder': _encoder['name']})
 
-            encode_clip(job, cwd, video, {**clip, 'i': i}, file, look, progress)
-            done_sec += length
-            files.append(f'clip{i}.mp4')
-        if len(clips) > 1:
+            if kind == 'hold':
+                encode_hold(job, cwd, video, {**p, 'i': n}, file, look, progress)
+            else:
+                encode_clip(job, cwd, video, {**p, 'i': n}, file, look, progress)
+            done_sec += size
+            files.append(f'part{n}.mp4')
+        if len(parts) > 1:
             join_clips(cwd, files, out)
         send({'state': 'done', 'out': out, 'encoder': _encoder['name']})
     except ffmpeg.Cancelled:
@@ -138,7 +183,8 @@ def _export(job, video, clips, out, look) -> None:
 
 def export_clips(opts):
     """`look` is the same for every clip in a reel, so they can be joined without encoding again:
-    { vertical, outH, logo: { file, width, opacity, corner } | null }."""
+    { vertical, outH, fps, logo: { file, width, opacity, corner } | null }. A clip can have `holds`:
+    [{ at, secs, drawing: png base64 }], frames to pause on with the user's drawing over them."""
     global _job
     if _job:
         return {'ok': False, 'error': 'A clip is already being saved. Wait for it to finish.'}

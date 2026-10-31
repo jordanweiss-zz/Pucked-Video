@@ -38,6 +38,7 @@ async function init() {
   Crop.wire();
   AutoCut.wire();
   Follow.wire();
+  Review.wire();
   Library.wire();
   GameData.wire();
   await Teams.load();
@@ -407,6 +408,7 @@ document.addEventListener('keydown', (e) => {
   if (e.key.toLowerCase() === 'i' && focusTag) return Clips.setHere('start');
   if (e.key.toLowerCase() === 'o' && focusTag) return Clips.setHere('end');
   if (e.key === 'Escape' && Draw.active) return Draw.close();
+  if (e.key === 'Escape' && !Review.rec && !$('revBar').hidden) return Review.close();
   if (e.key === ' ') { e.preventDefault(); $('play').click(); return; }
   if (e.key === 'ArrowLeft') return $('back').click();
   if (e.key === 'ArrowRight') return $('fwd').click();

@@ -122,10 +122,10 @@ const Draw = {
     save();
   },
 
-  // The drawing alone as a transparent PNG the size of the video; the main process puts the frame under it.
-  async drawingPng() {
+  // The drawing alone as a transparent PNG the size of the video; the server puts the frame under it.
+  async drawingPng(shapes = this.shapes()) {
     const w = video.videoWidth, h = video.videoHeight;
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">${this.shapes().map((s) => this.shapeSvg(s)).join('')}</svg>`;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">${shapes.map((s) => this.shapeSvg(s)).join('')}</svg>`;
     const img = new Image();
     img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
     await img.decode();

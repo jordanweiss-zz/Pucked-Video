@@ -31,7 +31,8 @@ const Clips = {
       + ` <button data-out="${i}" title="End the clip where the video is now (O)">End here</button>`
       + (this.canSave() ? ` <button data-save="${i}" title="Save this clip as an MP4">Save clip</button>`
         + ` <button data-save9="${i}" title="Save a vertical (9:16) copy for phones and social media">Save 9:16</button>`
-        + ` <button data-frame="${i}" class="${Crop.tag === t ? 'on' : ''}" title="Choose which part of the picture the 9:16 copy shows">Frame 9:16</button>` : '') + '</div>';
+        + ` <button data-frame="${i}" class="${Crop.tag === t ? 'on' : ''}" title="Choose which part of the picture the 9:16 copy shows">Frame 9:16</button>`
+        + ` <button data-review="${i}" title="Record a video of this play with your voice and drawings">🎙 Review</button>` : '') + '</div>';
   },
 
   // Move the clip's start or end to a time in the video, keeping the tag inside the clip.
@@ -49,7 +50,8 @@ const Clips = {
   },
 
   onRowClick(e) {
-    const { preview, save, save9, frame } = e.target.dataset;
+    const { preview, save, save9, frame, review } = e.target.dataset;
+    if (review !== undefined) Review.open(tags[Number(review)]);
     if (preview !== undefined) playClip(Number(preview));
     if (save !== undefined) this.saveTag(tags[Number(save)], false);
     if (save9 !== undefined) this.saveTag(tags[Number(save9)], true);
@@ -284,9 +286,26 @@ const Clips = {
     return c.toDataURL('image/png').split(',')[1];
   },
 
+  // How long saved clips pause on a frame you drew on (0 = don't pause). Set in the draw bar and the reel dialog.
+  get drawPause() { return AI.settings.drawPause ?? 3; },
+  setDrawPause(secs) {
+    AI.settings.drawPause = secs;
+    window.api.saveSettings(AI.settings);
+    for (const id of ['drawPause', 'reelDrawPause']) $(id).value = String(secs);
+  },
+
+  // The drawn frames inside a clip, as pictures for the server to hold on.
+  async holds(c) {
+    const secs = this.drawPause;
+    if (!secs) return [];
+    const drawn = Draw.drawings.filter((d) => d.shapes.length && d.time >= c.start && d.time < c.end);
+    return Promise.all(drawn.map(async (d) => ({ at: d.time, secs, cropX: c.cropX, drawing: await Draw.drawingPng(d.shapes) })));
+  },
+
   async start(clips, out, overlay, vertical = false) {
-    const look = this.look(vertical);
+    const look = { ...this.look(vertical), fps: Math.max(24, Math.min(60, Math.round(1 / frameDuration))) };
     if (overlay) clips = clips.map((c) => ({ ...c, overlay: c.label ? this.overlayImage(c.label, look.outW, look.outH) : null }));
+    clips = await Promise.all(clips.map(async (c) => ({ ...c, holds: await this.holds(c) })));
     const res = await window.api.exportClips({ video: current.path, clips, out, look });
     if (!res.ok) return alert(res.error);
     this.saving = true;
@@ -320,6 +339,10 @@ const Clips = {
     $('reelLength').onchange = () => this.renderReel();
     $('autoBtn').onclick = () => this.openAuto();
     $('reelSave').onclick = () => this.saveReel();
+    for (const id of ['drawPause', 'reelDrawPause']) {
+      $(id).value = String(this.drawPause);
+      $(id).onchange = (e) => this.setDrawPause(Number(e.target.value));
+    }
     $('reelVertical').onchange = () => { $('reelSoft').hidden = !$('reelVertical').checked || (video.videoHeight || 1080) > 1080; };
     $('reelWide').onchange = $('reelVertical').onchange;
     $('logoPick').onclick = async () => {

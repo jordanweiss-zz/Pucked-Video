@@ -185,6 +185,22 @@ button:disabled { opacity: 0.5; cursor: default; }
 .clip-band i[data-edge="start"] { left: -5px; }
 .clip-band i[data-edge="end"] { right: -5px; }
 #tagList .clip-row .clip-span { margin: 0 4px; font-variant-numeric: tabular-nums; }
+.rev-bar { background: #2a1f22; border-color: #5a2f38; }
+.rev-bar.recording { border-color: #e5484d; }
+.rev-bar #revHint { flex: 1; }
+.rev-bar #revRec.rec { background: #e5484d; border-color: #e5484d; color: #fff; }
+.rev-time { font-variant-numeric: tabular-nums; min-width: 3em; }
+.rev-meter { width: 60px; height: 6px; background: #3a3f4a; border-radius: 3px; overflow: hidden; }
+.rev-meter i { display: block; height: 100%; width: 0; background: #3ddc84; }
+#revDialog textarea { flex: 1; background: #2a2e37; color: var(--text); border: 1px solid #3a3f4a; border-radius: 6px; padding: 6px; font: inherit; resize: vertical; }
+#revDialog h3 { margin: 16px 0 6px; font-size: 14px; }
+button.link { background: none; border: none; padding: 0; color: #8fb0ff; text-decoration: underline; cursor: pointer; }
+.yt-setup { width: min(620px, 92vw); }
+.yt-steps li { margin-bottom: 10px; line-height: 1.45; }
+.yt-steps a { color: #8fb0ff; }
+#ytState.ok { color: #3ddc84; }
+.draw-pause { font-size: 12px; white-space: nowrap; color: var(--muted); }
+.draw-pause select { background: #2a2e37; color: var(--text); border: 1px solid #3a3f4a; border-radius: 6px; padding: 2px 4px; font: inherit; }
 
 /* Game library */
 .library-dialog { width: min(960px, 94vw); }
