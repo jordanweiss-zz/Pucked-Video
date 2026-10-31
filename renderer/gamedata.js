@@ -67,7 +67,6 @@ const GameData = {
       ${row('Goals', (team) => goals.filter((g) => g.team === team).length)}
       ${sh?.teams ? row('Distance skated', (team) => `${this.num((t(team).distance_ft ?? NaN) / 5280, 1)} mi`) : ''}
       ${sh?.teams ? row('Sprints', (team) => this.num(t(team).sprints)) : ''}
-      ${sh?.teams ? row('Time on camera', (team) => this.mins(t(team).observed_s)) : ''}
       ${Object.entries(this.data.eventCounts ?? {}).filter(([type]) => type !== 'goal').map(([type, c]) => row(esc(AI.types[type] ?? type), (team) => c[team] ?? 0)).join('')}
     </tbody></table>`;
   },
@@ -77,20 +76,31 @@ const GameData = {
     $('gdGoals').innerHTML = goals.length ? `<h3>Goals</h3><ul class="gd-goals">${goals.map((g) => `<li><button class="link" data-seek="${g.window_start_s ?? g.time_s}">${fmt(g.time_s)}</button> ${esc(this.teamName(g.team))}${g.player ? ` · #${esc(g.player)}` : ''}</li>`).join('')}</ul>` : '';
   },
 
-  // One player's numbers over the shifts in the chosen period. Shifts are stretches where the number
-  // was readable, so counts and ice time are minimums.
+  // One player's numbers, for the whole game (Hockey AI's own totals) or one period (added up from the
+  // shifts). Shifts are stretches where the number was readable, so counts and ice time are minimums.
   sum(p, period) {
     const shifts = (p.shifts ?? []).filter((s) => !period || String(s.period) === period);
+    const t = !period && p.totals;
     const add = (k) => shifts.reduce((a, s) => a + (s[k] ?? 0), 0);
     const zones = {};
     for (const s of shifts) for (const [z, v] of Object.entries(s.zones_s ?? {})) zones[z] = (zones[z] ?? 0) + v;
-    const time = add('duration_s');
-    return {
+    const seen = add('observed_s') || add('duration_s');
+    return t ? {
+      shifts: t.shifts ?? shifts.length,
+      toi: t.toi_clock_s ?? t.toi_s,
+      distance: t.distance_ft,
+      top: t.top_speed_mph,
+      avg: t.avg_speed_mph,
+      sprints: t.sprints,
+      zones: t.zones_s ?? {},
+      first: shifts[0]?.start_s,
+    } : {
       shifts: shifts.length,
-      toi: add('toi_clock_s') || time,
+      toi: add('toi_clock_s') || add('duration_s'),
       distance: add('distance_ft'),
       top: Math.max(0, ...shifts.map((s) => s.top_speed_mph ?? 0)),
-      avg: time ? shifts.reduce((a, s) => a + (s.avg_speed_mph ?? 0) * (s.duration_s ?? 0), 0) / time : NaN,
+      // Weighted by the time the player was actually seen in each shift.
+      avg: seen ? shifts.reduce((a, s) => a + (s.avg_speed_mph ?? 0) * (s.observed_s ?? s.duration_s ?? 0), 0) / seen : NaN,
       sprints: add('sprints'),
       zones,
       first: shifts[0]?.start_s,
@@ -105,8 +115,10 @@ const GameData = {
       .map(([id, p]) => ({ id, p, s: this.sum(p, period) }))
       .filter((r) => r.s.shifts)
       .sort((a, b) => b.s.toi - a.s.toi);
-    const zoneKeys = [...new Set(rows.flatMap((r) => Object.keys(r.s.zones)))];
-    $('gdPlayers').innerHTML = `<thead><tr><th>Player</th><th>Team</th><th title="At least">Shifts</th><th title="At least">Ice time</th><th>Distance</th><th>Top speed</th><th>Avg speed</th><th>Sprints</th>${zoneKeys.map((z) => `<th>${esc(z[0].toUpperCase() + z.slice(1))} zone</th>`).join('')}</tr></thead><tbody>${rows.map(({ id, p, s }) => `<tr data-seek="${s.first ?? ''}" title="Click to watch their first shift">
+    const order = ['offensive', 'neutral', 'defensive'];
+    const zoneKeys = [...new Set(rows.flatMap((r) => Object.keys(r.s.zones)))]
+      .sort((a, b) => (order.indexOf(a) + 1 || 9) - (order.indexOf(b) + 1 || 9));
+    $('gdPlayers').innerHTML = `<thead><tr><th>Player</th><th>Team</th><th title="At least">Shifts</th><th title="Game-clock time, at least">Ice time</th><th>Distance</th><th>Top speed</th><th>Avg speed</th><th>Sprints</th>${zoneKeys.map((z) => `<th>${esc(z[0].toUpperCase() + z.slice(1))} zone</th>`).join('')}</tr></thead><tbody>${rows.map(({ id, p, s }) => `<tr data-seek="${s.first ?? ''}" title="Click to watch their first shift">
       <td>${p.number != null ? `#${esc(p.number)}` : `<span class="muted">${esc(id)}</span>`}</td><td>${esc(this.teamName(p.team))}</td>
       <td>${s.shifts}+</td><td>${this.mins(s.toi)}+</td><td>${this.num(s.distance)} ft</td><td>${this.num(s.top, 1)} mph</td><td>${this.num(s.avg, 1)} mph</td><td>${this.num(s.sprints)}</td>
       ${zoneKeys.map((z) => `<td>${this.mins(s.zones[z])}</td>`).join('')}</tr>`).join('')}</tbody>`;
